@@ -127,8 +127,8 @@ Confirm the loaded instruction files with `/memory` in the next session.
 ## 6. claude-mem
 
 Only if `~/.claude-mem/settings.json` exists. Its `CLAUDE_MEM_SKIP_TOOLS` is one comma-separated string, matched on
-whole names. Offer to append the six `mcp__plugin_datashard_datashard__…` names it lacks, after the names already there,
-showing the value before and after. If the person keeps a `datashard` server added by hand (step 1), offer its six
+whole names. Offer to append the seven `mcp__plugin_datashard_datashard__…` names it lacks, after the names already there,
+showing the value before and after. If the person keeps a `datashard` server added by hand (step 1), offer its seven
 `mcp__datashard__…` names too. On a yes, change that value and nothing else in the file.
 
 ## 7. Check that a save still asks

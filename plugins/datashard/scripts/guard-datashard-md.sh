@@ -48,12 +48,13 @@ done
 # Whether a path is one of Claude Code's settings, plugin or MCP server files, under any spelling (macOS ignores case)
 # and through linked folders.
 settings() {
-  local path=$1 follow=${2:-follow} real lower config
-  # A symlinked file counts as what it points at, one link deep: guarded() below follows longer chains and loops.
-  if [ "$follow" = follow ] && [ -L "$path" ]; then
+  local path=$1 hops=${2:-0} real lower config
+  # Inspect the entire file-link chain; loops or long chains require confirmation.
+  [ "$hops" -lt 16 ] || return 0
+  if [ -L "$path" ]; then
     real=$(readlink "$path") || return 0
     case $real in /*) ;; *) real=$(dirname "$path")/$real ;; esac
-    settings "$real" no && return 0
+    settings "$real" "$((hops + 1))" && return 0
   fi
   real=$(CDPATH='' cd "$(dirname "$path")" 2>/dev/null && pwd -P)/${path##*/} || real=$path
   config=$(printf '%s' "${CLAUDE_CONFIG_DIR:-}" | tr '[:upper:]' '[:lower:]') || return 0

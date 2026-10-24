@@ -28,7 +28,7 @@ version=$("$binary" --version)
 if [[ $version != mnem0nic\ * ]]; then echo 'The executable does not identify itself as mnem0nic.' >&2; exit 1; fi
 command -v git >/dev/null || { echo 'Git is required.' >&2; exit 1; }
 command -v sqlite3 >/dev/null || { echo 'sqlite3 with FTS5 is required by this preview.' >&2; exit 1; }
-sqlite3 -batch -bail -json :memory: 'CREATE VIRTUAL TABLE probe USING fts5(body); SELECT json_valid("{}");' >/dev/null
+sqlite3 -batch -bail -json :memory: "CREATE VIRTUAL TABLE probe USING fts5(body); SELECT json_valid('{}');" >/dev/null
 "$binary" --project "$project_root" init
 if [[ ${3:-} == --codex ]]; then
   mkdir -p "$project_root/.agents/skills"

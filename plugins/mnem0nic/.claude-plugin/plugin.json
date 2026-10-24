@@ -1,9 +1,15 @@
 {
   "name": "mnem0nic",
   "displayName": "mnem0nic (preview)",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local checkpoint workflow for a separately installed mnem0nic executable. No account required; CLI preview, not yet an MCP server.",
-  "author": { "name": "Datashard" },
+  "author": {
+    "name": "Datashard"
+  },
   "repository": "https://github.com/datashard-ai/plugins",
-  "keywords": ["memory", "checkpoints", "local"]
+  "keywords": [
+    "memory",
+    "checkpoints",
+    "local"
+  ]
 }

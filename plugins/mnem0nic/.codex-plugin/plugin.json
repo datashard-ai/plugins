@@ -1,6 +1,6 @@
 {
   "name": "mnem0nic",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local checkpoint workflow preview; requires a separately installed mnem0nic executable.",
   "skills": "./skills/"
 }

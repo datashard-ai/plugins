@@ -83,4 +83,6 @@ A fact for the project's section, when the project keeps a bundle, is a file. An
 
 - Write or edit the file as [fact-format.md](fact-format.md) describes, and add a line to the bundle's `log.md`.
   To split or merge facts in a bundle, follow its "Splitting and merging" section.
-- Tell the person the fact reaches Datashard at the next import of the bundle (a dry run, then `--apply`).
+- Tell the person the fact reaches Datashard after an authorized importer uploads the bundle ZIP through
+  **Import** on their install's home page, reviews the preview, and confirms the import. Editing the file alone
+  does not publish it. Do not suggest the retired `import-okf --apply` command.

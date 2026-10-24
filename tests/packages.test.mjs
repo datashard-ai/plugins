@@ -62,7 +62,7 @@ test('Datashard installer refuses invalid URL or existing server before installi
 });
 test('Datashard registers only the supplied HTTPS endpoint',t=>{
  const p=scratch(t);const bin=join(p,'bin');mkdirSync(bin);const log=join(p,'calls');
- executable(join(bin,'codex'),'if [[ "$2" == get ]]; then exit 1; fi\nprintf "%s\\n" "$@" > "$CALL_LOG"\n');
+ executable(join(bin,'codex'),'if [[ "$2" == get ]]; then echo "Error: No MCP server named \'datashard\' found." >&2; exit 1; fi\nprintf "%s\\n" "$@" > "$CALL_LOG"\n');
  const r=shell(ds,['https://example.com/mcp',p],{PATH:bin+':'+process.env.PATH,CALL_LOG:log});
  assert.equal(r.status,0,r.stderr);assert.equal(readFileSync(log,'utf8'),'mcp\nadd\ndatashard\n--url\nhttps://example.com/mcp\n');
  assert.ok(existsSync(join(p,'.agents/skills/save-to-datashard/fact-format.md')));
@@ -100,4 +100,46 @@ test('memory setup does not install Codex skill without --codex',t=>{
 test('Datashard rejects symlinked skills parent before changing connection or files',t=>{
  const p=scratch(t),outside=join(p,'outside'),project=join(p,'project');mkdirSync(outside);mkdirSync(project);symlinkSync(outside,join(project,'.agents'));
  const r=shell(ds,['--skills-only',project]);assert.notEqual(r.status,0);assert.deepEqual(readdirSync(outside),[]);
+});
+
+test('Datashard refuses unknown lookup failures rather than overwriting an existing server',t=>{
+ const p=scratch(t),bin=join(p,'bin');mkdirSync(bin);
+ const log=join(p,'calls');
+ executable(join(bin,'codex'),'if [[ "$2" == get ]]; then echo "Error: permission denied reading config" >&2; exit 1; fi\necho called > "$CALL_LOG"\n');
+ const r=shell(ds,['https://example.com/mcp',p],{PATH:bin+':'+process.env.PATH,CALL_LOG:log});
+ assert.notEqual(r.status,0);assert.ok(!existsSync(log));assert.ok(!existsSync(join(p,'.agents')));
+});
+test('memory setup supports SQLite with double-quoted strings disabled',t=>{
+ const {p,binary,project,env}=mockMemory(t),bin=join(p,'bin');mkdirSync(bin);
+ const sqlite=spawnSync('/bin/sh',['-c','command -v sqlite3'],{encoding:'utf8'}).stdout.trim();
+ assert.ok(sqlite.startsWith('/'));
+ executable(join(bin,'sqlite3'),'exec "$REAL_SQLITE" -cmd ".dbconfig dqs_dml off" "$@"\n');
+ const r=shell(mn,[binary,project],{...env,REAL_SQLITE:sqlite,PATH:bin+':'+process.env.PATH});
+ assert.equal(r.status,0,r.stderr);assert.ok(existsSync(env.INIT_LOG));
+});
+test('every tracked repository file belongs to the reviewed distribution',()=>{
+ const r=spawnSync('git',['-C',root,'ls-files','-z'],{encoding:'utf8'});
+ assert.equal(r.status,0,r.stderr);
+ const allowed=new Set([...packageFiles,'.claude-plugin/marketplace.json','.gitignore','README.md','MAINTAINING.md','tests/packages.test.mjs']);
+ for(const file of r.stdout.split('\0').filter(Boolean)) assert.ok(allowed.has(file),`Unreviewed tracked file: ${file}`);
+});
+
+function fileGuard(project,path) {
+ return spawnSync('/bin/bash',[join(root,'plugins/datashard/scripts/guard-datashard-md.sh')],{
+  env:{...process.env,CLAUDE_PROJECT_DIR:project},encoding:'utf8',timeout:10000,
+  input:JSON.stringify({tool_name:'Edit',tool_input:{file_path:path}})
+ });
+}
+test('Claude guard asks before settings edits through multiple file symlinks or a loop',t=>{
+ const p=scratch(t);mkdirSync(join(p,'.claude'));writeFileSync(join(p,'.claude/settings.json'),'{}');
+ symlinkSync('.claude/settings.json',join(p,'alias-two'));symlinkSync('alias-two',join(p,'alias-one'));
+ symlinkSync('loop-two',join(p,'loop-one'));symlinkSync('loop-one',join(p,'loop-two'));
+ for(const file of ['alias-one','alias-two','loop-one']) {
+  const r=fileGuard(p,join(p,file));assert.equal(r.status,0,r.stderr);
+  assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision,'ask');
+ }
+});
+test('Claude guard allows ordinary source edits through file symlinks',t=>{
+ const p=scratch(t);writeFileSync(join(p,'source.txt'),'text');symlinkSync('source.txt',join(p,'source-alias'));
+ const r=fileGuard(p,join(p,'source-alias'));assert.equal(r.status,0,r.stderr);assert.equal(r.stdout,'');
 });

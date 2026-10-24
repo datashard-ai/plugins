@@ -55,13 +55,20 @@ for index in 0 1; do
 done
 
 # A second install must never silently replace another company's connection.
-if [[ $1 != --skills-only ]] && codex mcp get datashard >/dev/null 2>&1; then
-  echo 'A Codex MCP server named datashard already exists. No configuration was changed.' >&2
-  echo 'Inspect it with: codex mcp get datashard' >&2
-  echo 'To sign in to it, run: codex mcp login datashard' >&2
-  echo 'To replace it deliberately, run: codex mcp remove datashard; then rerun this installer.' >&2
-  echo 'To install project skills without changing the connection, rerun with --skills-only [project-root].' >&2
-  exit 1
+if [[ $1 != --skills-only ]]; then
+  if connection_check=$(codex mcp get datashard 2>&1); then
+    echo 'A Codex MCP server named datashard already exists. No configuration was changed.' >&2
+    echo 'Inspect it with: codex mcp get datashard' >&2
+    echo 'To sign in to it, run: codex mcp login datashard' >&2
+    echo 'To replace it deliberately, run: codex mcp remove datashard; then rerun this installer.' >&2
+    echo 'To install project skills without changing the connection, rerun with --skills-only [project-root].' >&2
+    exit 1
+  elif ! printf '%s\n' "$connection_check" | grep -Fxq "Error: No MCP server named 'datashard' found."; then
+    # A config/permission/CLI failure is not evidence that the name is unused.
+    echo 'Could not establish whether datashard is already registered. No configuration was changed.' >&2
+    echo 'Run codex mcp get datashard to diagnose the failure, or use --skills-only.' >&2
+    exit 1
+  fi
 fi
 
 # Codex owns config.toml and the OAuth browser flow; do not write credentials here.
