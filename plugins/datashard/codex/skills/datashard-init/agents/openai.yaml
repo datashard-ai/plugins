@@ -1,0 +1,3 @@
+interface:
+  display_name: "Datashard Init"
+  short_description: "Set up Datashard project instructions in Codex"

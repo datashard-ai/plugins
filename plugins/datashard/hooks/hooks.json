@@ -1,0 +1,27 @@
+{
+  "description": "Keeps a project's saves in the Datashard install its DATASHARD.md names, and asks before Claude changes that file (ADR 0036)",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__plugin_datashard_datashard__save|mcp__plugin_datashard_datashard__flag",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/check-install.sh\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-datashard-md.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

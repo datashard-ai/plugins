@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "datashard": {
+      "type": "http",
+      "url": "${user_config.datashard_url}"
+    }
+  }
+}

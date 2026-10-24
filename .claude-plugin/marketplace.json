@@ -1,0 +1,9 @@
+{
+  "name": "datashard",
+  "owner": { "name": "Datashard" },
+  "description": "Datashard team knowledge and mnem0nic personal memory integrations.",
+  "plugins": [
+    { "name": "datashard", "source": "./plugins/datashard", "description": "Connect to your company's Datashard knowledge base." },
+    { "name": "mnem0nic", "source": "./plugins/mnem0nic", "description": "Local checkpoint workflow preview. Requires a separately supplied mnem0nic executable." }
+  ]
+}

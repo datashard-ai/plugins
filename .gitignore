@@ -1,0 +1,22 @@
+# Personal state and developer notes
+.project-memory/
+.mnem0nic/
+/task_plan.md
+/findings.md
+/progress.md
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.sqlite*
+*.db
+*.log
+.DS_Store
+# Implementation and build artifacts do not belong in this distribution repo
+/target/
+/node_modules/
+/dist/
+*.rs
+Cargo.toml
+Cargo.lock
