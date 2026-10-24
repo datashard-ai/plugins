@@ -143,3 +143,21 @@ test('Claude guard allows ordinary source edits through file symlinks',t=>{
  const p=scratch(t);writeFileSync(join(p,'source.txt'),'text');symlinkSync('source.txt',join(p,'source-alias'));
  const r=fileGuard(p,join(p,'source-alias'));assert.equal(r.status,0,r.stderr);assert.equal(r.stdout,'');
 });
+
+test('Claude guard resolves JSON-escaped symlink names before inspecting their targets',t=>{
+ const p=scratch(t);mkdirSync(join(p,'.claude'));writeFileSync(join(p,'.claude/settings.json'),'{}');
+ writeFileSync(join(p,'DATASHARD.md'),'# Datashard');
+ for(const [name,target] of [['quoted"settings','.claude/settings.json'],['quoted"datashard','DATASHARD.md'],['back\\slash','.claude/settings.json']]) {
+  symlinkSync(target,join(p,name));const r=fileGuard(p,join(p,name));assert.equal(r.status,0,r.stderr);
+  assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision,'ask');
+ }
+});
+test('Claude guard permits ordinary quoted names and asks for undecoded Unicode escapes',t=>{
+ const p=scratch(t);writeFileSync(join(p,'source"file.txt'),'text');
+ const r=fileGuard(p,join(p,'source"file.txt'));assert.equal(r.status,0,r.stderr);assert.equal(r.stdout,'');
+ const out=spawnSync('/bin/bash',[join(root,'plugins/datashard/scripts/guard-datashard-md.sh')],{
+  env:{...process.env,CLAUDE_PROJECT_DIR:p},encoding:'utf8',timeout:10000,
+  input:'{"tool_name":"Edit","tool_input":{"file_path":"'+p+'/D\\u0041TASHARD.md"}}'
+ });
+ assert.equal(out.status,0,out.stderr);assert.equal(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision,'ask');
+});

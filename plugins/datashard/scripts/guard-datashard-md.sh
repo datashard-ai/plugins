@@ -93,11 +93,34 @@ guarded() {
   return 1
 }
 
+# Decode the ordinary JSON path escapes before filesystem inspection. Unicode and
+# control escapes need a full JSON decoder; ask rather than inspect a different path.
+decode_path() {
+  local encoded=$1 decoded="" character escape i=0
+  while [ "$i" -lt "${#encoded}" ]; do
+    character=${encoded:$i:1}
+    if [ "$character" = '\' ]; then
+      i=$((i + 1))
+      [ "$i" -lt "${#encoded}" ] || return 1
+      escape=${encoded:$i:1}
+      case $escape in
+        '"' | '\' | '/') decoded="$decoded$escape" ;;
+        *) return 1 ;;
+      esac
+    else
+      decoded="$decoded$character"
+    fi
+    i=$((i + 1))
+  done
+  printf '%s' "$decoded"
+}
+
 while IFS= read -r line; do
   [ -n "$line" ] || continue
   path=${line#*:}
   path=${path#*\"}
   path=${path%\"}
+  path=$(decode_path "$path") || ask
   if settings "$path"; then ask "$about_settings"; fi
   if guarded "$path"; then ask; fi
 done <<<"$paths"
