@@ -120,7 +120,9 @@ test('memory setup supports SQLite with double-quoted strings disabled',t=>{
 test('every tracked repository file belongs to the reviewed distribution',()=>{
  const r=spawnSync('git',['-C',root,'ls-files','-z'],{encoding:'utf8'});
  assert.equal(r.status,0,r.stderr);
- const allowed=new Set([...packageFiles,'.claude-plugin/marketplace.json','.gitignore','README.md','MAINTAINING.md','tests/packages.test.mjs']);
+ const allowed=new Set([...packageFiles,'.claude-plugin/marketplace.json','.gitignore','README.md','MAINTAINING.md',
+  '.github/workflows/ci.yml','.github/dependabot.yml','.github/claude-code/package.json','.github/claude-code/package-lock.json',
+  'tests/packages.test.mjs','tests/datashard.test.mjs','tests/release-checks.test.mjs','tests/version-check.sh','tests/open-prs-check.sh']);
  for(const file of r.stdout.split('\0').filter(Boolean)) assert.ok(allowed.has(file),`Unreviewed tracked file: ${file}`);
 });
 

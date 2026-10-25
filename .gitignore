@@ -15,7 +15,7 @@
 .DS_Store
 # Implementation and build artifacts do not belong in this distribution repo
 /target/
-/node_modules/
+node_modules/
 /dist/
 *.rs
 Cargo.toml

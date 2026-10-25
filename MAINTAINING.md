@@ -15,7 +15,27 @@ The Datashard package starts at 0.26.0 in this new marketplace. Both its plugin 
 and marketplace name remain datashard to preserve client tool naming. The original
 repository is not transferred or deleted by this change. Do not point an old
 single-package publishing script at this multi-package repository: such a script
-could erase its other packages. This repository needs its own release process.
+could erase its other packages.
+
+## Releasing
+
+This repository is the marketplace: a push to `main` reaches everyone who updates.
+People get a package's change only when its version goes up, so a pull request that
+changes anything under `plugins/<name>/` raises that package's `version` in its
+`.claude-plugin/plugin.json` above its base branch's, as x.y.z (CI checks each
+package on its own). Before merging, update the branch with `main`, so CI compares
+the version with what has merged since: the plan has no branch protection to require
+it. After each push to `main`, CI marks any open pull request whose version `main` has
+caught up with; if the check fails on `main` itself, raise the version in a new pull
+request.
+
+Everyone gets the same Datashard package, whatever Datashard release their install
+runs, so it must keep working with every release still deployed.
+
+The Datashard package's `templates/DATASHARD.md` and `skills/save-to-datashard/` are
+copies of Datashard's own agent templates, which its source keeps for agents set up
+by hand. Change both in the same piece of work; `codex/skills/datashard-init/assets/DATASHARD.md`
+must equal `templates/DATASHARD.md` (the tests check).
 
 No hosted MCP connection, account, endpoint or access permission is changed merely
 by publishing this repository. Existing installs need the documented marketplace

@@ -1,0 +1,25 @@
+# Updates come once a week: minor and patch action updates together, a major one or an npm update on its own. Nothing
+# merges on its own: each pull request goes through CI and review like any other.
+version: 2
+updates:
+  - package-ecosystem: npm
+    # Pins the Claude Code that CI validates the packages with.
+    directory: /.github/claude-code
+    schedule:
+      interval: weekly
+    # A release is proposed only once it is a week old: a hijacked package is usually pulled within days.
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: github-actions
+    # Actions are pinned by commit; Dependabot moves the pin and its version comment together. GitHub raises no alert for
+    # an action pinned by commit, so a fixed action comes only with the weekly update.
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
