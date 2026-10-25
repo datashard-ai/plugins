@@ -21,10 +21,11 @@ case $plugin_address in '${'*) plugin_address="" ;; esac # a setting Claude Code
 
 # The nearest DATASHARD.md at or above the folder Claude Code started in, as Claude Code finds CLAUDE.md.
 # Claude Code names that folder; without it, the hook's own working directory can't be trusted to be the project.
+# A folder it can't enter isn't searched, so the check doesn't report it as holding no DATASHARD.md either.
 [ -n "${CLAUDE_PROJECT_DIR:-}" ] || cannot_check
 project_address=""
 found=""
-start=$(CDPATH='' cd "$CLAUDE_PROJECT_DIR" 2>/dev/null && pwd) || start=""
+start=$(CDPATH='' cd "$CLAUDE_PROJECT_DIR" 2>/dev/null && pwd) || cannot_check
 dir=$start
 while [ -n "$dir" ]; do
   if [ -f "$dir/DATASHARD.md" ]; then
@@ -72,12 +73,14 @@ case $plugin_address in
   *@*) ;;
   *) printf '%s' "$plugin_install" | grep -Eq "$plain" && plugin_named=$plugin_install ;;
 esac
-# The folder Claude Code started in is quoted only when it holds nothing but ASCII letters, digits, spaces and . _ - /,
-# listed rather than ranged, since a range can take in other letters in some locales.
+# The folder Claude Code started in is quoted only when it holds nothing but ASCII letters, digits, spaces and . _ - /
+# (listed rather than ranged, since a range can take in other letters in some locales), so it reaches the message
+# whole, with no punctuation of its own. Such a folder can still spell words: an ask's reason is shown to the person in
+# the permission prompt, and Claude reads it only in a -p run, where Claude Code refuses the save.
 folder_chars="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/ -"
 started_in="the folder Claude Code started in"
 case $start in
-  "" | *[!"$folder_chars"]*) ;;
+  *[!"$folder_chars"]*) ;;
   *) started_in=$start ;;
 esac
 
