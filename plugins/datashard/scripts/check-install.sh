@@ -23,9 +23,12 @@ case $plugin_address in '${'*) plugin_address="" ;; esac # a setting Claude Code
 # Claude Code names that folder; without it, the hook's own working directory can't be trusted to be the project.
 [ -n "${CLAUDE_PROJECT_DIR:-}" ] || cannot_check
 project_address=""
-dir=$(CDPATH='' cd "$CLAUDE_PROJECT_DIR" 2>/dev/null && pwd) || dir=""
+found=""
+start=$(CDPATH='' cd "$CLAUDE_PROJECT_DIR" 2>/dev/null && pwd) || start=""
+dir=$start
 while [ -n "$dir" ]; do
   if [ -f "$dir/DATASHARD.md" ]; then
+    found=$dir
     # The first Install line of its "This project" block.
     # sed reads the file itself: it quits at the line, and anything piping the file into it would then fail.
     project_address=$(sed -n -E -e '/^## This project/,/^## /{' -e '/^- Install: /{' \
@@ -69,6 +72,14 @@ case $plugin_address in
   *@*) ;;
   *) printf '%s' "$plugin_install" | grep -Eq "$plain" && plugin_named=$plugin_install ;;
 esac
+# The folder Claude Code started in is quoted only when it holds nothing but ASCII letters, digits, spaces and . _ - /,
+# listed rather than ranged, since a range can take in other letters in some locales.
+folder_chars="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/ -"
+started_in="the folder Claude Code started in"
+case $start in
+  "" | *[!"$folder_chars"]*) ;;
+  *) started_in=$start ;;
+esac
 
 json() {
   printf '%s' "$1" | LC_ALL=C tr -cd '\11\40-\176' | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g'
@@ -81,6 +92,8 @@ decide() {
 
 if [ -z "$plugin_address" ]; then
   decide ask "The Datashard plugin has no address set, so this save's install can't be checked against this project's DATASHARD.md. Set it in /config, then run /datashard:init."
+elif [ -z "$found" ]; then
+  decide ask "No DATASHARD.md is in $started_in or a folder above it, so nothing names this project's Datashard install, and this save goes to $plugin_named. If the project's DATASHARD.md is in a subfolder, start Claude Code there; if it has none, /datashard:init writes one. Save only if this project's knowledge belongs there."
 elif [ -z "$project_install" ]; then
   decide ask "This project's DATASHARD.md names no Datashard install, and this save goes to $plugin_named. Save only if this project's knowledge belongs there; /datashard:init records the install."
 elif [ "$project_install" != "$plugin_install" ]; then
