@@ -54,6 +54,41 @@ describe("the plugin's MCP server", () => {
   });
 });
 
+// Codex reads this repository's marketplace too, and without a .codex-plugin/plugin.json it would load the Claude
+// package as it is: its .mcp.json, whose address Codex never fills in, and Claude's hooks/hooks.json.
+describe('the package for Codex', () => {
+  const codex = json(join(plugin, '.codex-plugin/plugin.json'));
+
+  it('is the same plugin at the same version as the Claude one', () => {
+    assert.equal(codex.name, 'datashard');
+    assert.equal(codex.version, json(join(plugin, '.claude-plugin/plugin.json')).version);
+  });
+
+  it("brings only Codex's skills, no MCP server and no hooks", () => {
+    assert.equal(codex.skills, './codex/skills/');
+    assert.deepEqual(json(join(plugin, codex.mcpServers)), { mcpServers: {} });
+    // An inline object, as Codex ignores an empty list and falls back to hooks/hooks.json.
+    assert.deepEqual(codex.hooks, { hooks: {} });
+  });
+
+  const cli = spawnSync('codex', ['--version'], { encoding: 'utf8' });
+  it('installs in Codex with $datashard-init and without a datashard server', { skip: cli.status !== 0 && 'no codex CLI here' }, (t) => {
+    const home = mkdtempSync(join(tmpdir(), 'datashard-codex-home-'));
+    t.after(() => rmSync(home, { recursive: true, force: true }));
+    const codexIn = (...args) => {
+      const run = spawnSync('codex', args, { cwd: home, env: { ...process.env, CODEX_HOME: home }, encoding: 'utf8', timeout: 60000 });
+      assert.equal(run.status, 0, run.stderr);
+      return run.stdout;
+    };
+    codexIn('plugin', 'marketplace', 'add', root);
+    codexIn('plugin', 'add', 'datashard@datashard');
+    lacks(codexIn('mcp', 'list'), 'datashard');
+    const prompt = codexIn('debug', 'prompt-input', 'hello');
+    contains(prompt, 'datashard:datashard-init');
+    lacks(prompt, 'datashard:init');
+  });
+});
+
 describe("the package's tests", () => {
   it('run in CI, every file under tests/', () => {
     contains(read(join(root, '.github/workflows/ci.yml')), 'node --test tests/*.test.mjs');

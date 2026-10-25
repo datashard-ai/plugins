@@ -81,6 +81,12 @@ project's section, tags and bundle, then creates or updates `DATASHARD.md` and
 when present, so Codex does not skip the Datashard instructions. Codex discovers the
 project skills on its own; restart it if `$datashard-init` is not listed.
 
+Codex also reads this repository as a plugin marketplace
+(`codex plugin marketplace add datashard-ai/plugins`). Its `datashard@datashard` plugin
+brings only `$datashard-init`, for every project, with no MCP server and no hooks:
+the connection still comes from `codex mcp add` or the installer above, and the save
+skill from the installer's `--skills-only`.
+
 The installer refuses to replace an existing server, so it cannot silently switch you
 to another company's install. It accepts identical existing skills and refuses to
 overwrite differing ones: review those before moving them aside for an update. Codex
