@@ -16,7 +16,7 @@ function executable(p,body) { writeFileSync(p,'#!/bin/bash\nset -eu\n'+body,{mod
 const ds='plugins/datashard/scripts/install-codex.sh';
 const mn='plugins/mnem0nic/scripts/setup.sh';
 const packageFiles = [
- 'plugins/datashard/.claude-plugin/plugin.json','plugins/datashard/.mcp.json','plugins/datashard/README.md',
+ 'plugins/datashard/.claude-plugin/plugin.json','plugins/datashard/.codex-plugin/plugin.json','plugins/datashard/codex/mcp.json','plugins/datashard/.mcp.json','plugins/datashard/README.md',
  'plugins/datashard/hooks/hooks.json','plugins/datashard/scripts/check-install.sh','plugins/datashard/scripts/guard-datashard-md.sh','plugins/datashard/scripts/install-codex.sh',
  'plugins/datashard/skills/init/SKILL.md','plugins/datashard/skills/save-to-datashard/SKILL.md','plugins/datashard/skills/save-to-datashard/fact-format.md','plugins/datashard/templates/DATASHARD.md',
  'plugins/datashard/codex/skills/datashard-init/SKILL.md','plugins/datashard/codex/skills/datashard-init/assets/DATASHARD.md','plugins/datashard/codex/skills/datashard-init/agents/openai.yaml',

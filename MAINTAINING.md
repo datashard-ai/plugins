@@ -32,6 +32,12 @@ request.
 Everyone gets the same Datashard package, whatever Datashard release their install
 runs, so it must keep working with every release still deployed.
 
+Codex reads the same root `.claude-plugin/marketplace.json`. Where a package has a
+`.codex-plugin/plugin.json`, Codex uses it in place of `.claude-plugin/plugin.json`:
+keep both at the same version (the tests check). Without one, Codex loads the Claude
+package as it is, including its `.mcp.json` and `hooks/hooks.json`; the Datashard
+package's Codex manifest names an empty MCP file and empty inline hooks for that reason.
+
 The Datashard package's `templates/DATASHARD.md` and `skills/save-to-datashard/` are
 copies of Datashard's own agent templates, which its source keeps for agents set up
 by hand. Change both in the same piece of work; `codex/skills/datashard-init/assets/DATASHARD.md`
