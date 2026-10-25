@@ -71,5 +71,6 @@ combined connection with optional Datashard are future work, not shipped feature
 Maintainers can run `node --test tests/*.test.mjs` with Node 22 or newer. Tests use
 isolated temporary directories and do not change personal client configuration.
 Run `claude plugin validate .` and validate each `plugins/*` directory when the
-Claude CLI is available. [MAINTAINING.md](MAINTAINING.md) describes the publication
-boundary and migration from the older marketplace.
+Claude CLI is available. CI runs both on every pull request and push to `main`, and
+checks that each changed package's version went up. [MAINTAINING.md](MAINTAINING.md)
+describes the publication boundary, releasing, and migration from the older marketplace.

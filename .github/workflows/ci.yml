@@ -1,0 +1,71 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  packages:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
+      # People get a package's change only when its version changes: this repository is the marketplace, so a push to
+      # main publishes at once. A pull request is compared with its base branch, a push to main with main before it.
+      - name: Each changed package's version goes up
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: bash tests/version-check.sh
+      - run: node --test tests/*.test.mjs
+      # Claude Code 2.1.304, pinned with integrity by .github/claude-code's lock file. Installed without its install
+      # script, which only copies the native binary into place; the package's cli-wrapper.cjs runs that binary instead.
+      # That file is the package's own, not a documented entry point: check it is still there when changing the version.
+      - run: npm ci --prefix .github/claude-code --ignore-scripts
+      - name: cli-wrapper.cjs is where this version keeps it
+        run: test -f .github/claude-code/node_modules/@anthropic-ai/claude-code/cli-wrapper.cjs
+      - name: The marketplace and every package pass Claude Code's strict validation
+        run: |
+          claude() { node .github/claude-code/node_modules/@anthropic-ai/claude-code/cli-wrapper.cjs "$@"; }
+          # The pinned version runs, so a wrapper that found no binary can't pass the checks below unrun.
+          pinned=$(node -p 'require("./.github/claude-code/package.json").dependencies["@anthropic-ai/claude-code"]')
+          claude --version | grep -F "$pinned (Claude Code)"
+          claude plugin validate --strict .
+          for package in plugins/*/; do claude plugin validate --strict "$package"; done
+
+  # After each push to main, a failing "plugin version" status on any open pull request whose package version main has
+  # caught up with: the repository's plan has no branch protection to require branches to be up to date.
+  plugin-prs:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    # A run for an older main must not finish last and overwrite a newer run's statuses.
+    concurrency:
+      group: plugin-prs
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
+      - run: bash tests/open-prs-check.sh
+        env:
+          GH_TOKEN: ${{ github.token }}

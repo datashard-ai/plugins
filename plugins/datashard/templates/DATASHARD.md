@@ -47,6 +47,18 @@ contract with another system, a gotcha that cost time, how a process works.
   updates rather than duplicates, keeps each fact within 4,000 characters (splitting a longer one into linked facts),
   shows the person the exact text, and saves only after they say yes.
 
+## mnem0nic
+
+If mnem0nic is installed, it keeps this person's sessions and notes on this machine; Datashard keeps what the team has
+verified. When they disagree, quote both and treat the Datashard fact as the verified one.
+
+- mnem0nic never keeps what a Datashard tool returns: nothing to configure.
+- When a note, decision or checkpoint rests on a Datashard fact, record the fact's `fact:section/id`, never its text
+  (checkpoints: `datashard_refs`).
+- When a memory search brings back a decision, contract or number that came from Datashard, read the fact again with
+  `read` before relying on it: the memory may be older than the fact.
+- A mnem0nic note reaches Datashard only through the `save-to-datashard` skill, with the person's yes.
+
 ## claude-mem
 
 If claude-mem is installed, it keeps this person's session notes on this machine; Datashard keeps what the team has
