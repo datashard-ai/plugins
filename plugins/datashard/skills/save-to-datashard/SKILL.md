@@ -6,7 +6,7 @@ description: Saves knowledge to the company's Datashard knowledge base, through 
 # Save to Datashard
 
 Four steps, in order. The person approves before anything is written: they are recorded as having verified it.
-Facts are kept small (ADR 0028): one topic each, within 4,000 characters, a long text split into linked facts.
+Facts are kept small: one topic each, within 4,000 characters, a long text split into linked facts.
 
 ## 1. Check what is there
 
@@ -40,11 +40,11 @@ Facts are kept small (ADR 0028): one topic each, within 4,000 characters, a long
 ## 3. Show it and wait
 
 Show the exact title, description, body, tags and section (or the file's path and full text) of every fact, with the
-section's under, client and project from the brief (ADR 0034), so the person sees whose knowledge it becomes. Show a new
+section's under, client and project from the brief, so the person sees whose knowledge it becomes. Show a new
 tag and its `about` apart from the fact's text, and, when an update moves a fact to another section, the old section's
 tags it drops. The
 section is the project's (see `DATASHARD.md`) unless the person names another. A client's cost, rates, budget and margin
-go in `commercial`, never in its client section. Show when the fact should be reviewed too (ADR 0050), as `reviewIn`:
+go in `commercial`, never in its client section. Show when the fact should be reviewed too, as `reviewIn`:
 pricing and rates `90d`, customer context `60d`, runbooks and architecture `6m`, policies `1y`, decisions `never`; left
 out, its section's interval applies. Save only after the person says yes; one yes covers all the facts shown together.
 
@@ -58,13 +58,13 @@ A fact for the project's section, when the project keeps a bundle, is a file. An
   clients, such as `commercial`, also pass `about`: the client's project or organisation id from the brief's `parties`.
 - A split: save the parts first, then the overview with the parts' ids (`save` refuses a link to a fact that does not
   exist yet). Pass the same ids as the overview's `parts`, so search returns the family once and each part carries the
-  overview's title (ADR 0031). Parts are in the overview's section; a part of another overview, or an overview itself,
+  overview's title. Parts are in the overview's section; a part of another overview, or an overview itself,
   is refused (`bad-part` names it).
 - Update: also pass the fact's `id` and the `version` you read. Retire: also pass `status: deprecated`, and leave out
   the title, description, body and tags, which are kept as they are; put the reason or the replacement in a fact that
   links to it.
 - Review, when you are the fact's reviewer and it is still right: pass its `id` and `version` and leave out its text, so
-  it is kept as it is and its review date moves (ADR 0050). Pass `closes` with the ids of the flags you showed the
+  it is kept as it is and its review date moves. Pass `closes` with the ids of the flags you showed the
   person, which the review answers. To mark it out of date until you can fix it, also pass `markStale`: every reader
   sees it as stale until its next review. `not-the-reviewer` names who reviews the fact; `imported` means review it in its
   bundle.

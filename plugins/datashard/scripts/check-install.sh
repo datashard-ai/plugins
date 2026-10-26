@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs before every save through the plugin (ADR 0036). A project's DATASHARD.md names the install its knowledge
+# Runs before every save through the plugin. A project's DATASHARD.md names the install its knowledge
 # belongs to; a save to the install the plugin connects to is refused when that is another one, and asks first when
 # the project names none. Prints nothing when the two agree, so the save goes on through the normal permission flow.
 set -u -o pipefail
@@ -7,7 +7,7 @@ set -u -o pipefail
 # A command failing below asks, rather than letting the save through unchecked; a failure inside $(...) fails the
 # assignment it feeds, which stops the script here too. So the functions run inside $(...) stay single pipelines,
 # which pipefail fails as a whole (set -E instead would make the trap print its answer into the variable). A timeout or a missing bash can't be caught from inside: Claude
-# Code then carries on with the save (ADR 0036).
+# Code then carries on with the save.
 cannot_check() {
   printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"The Datashard plugin could not check which install this save belongs to: save only if this project belongs to the install the plugin connects to."}}'
   exit 0
