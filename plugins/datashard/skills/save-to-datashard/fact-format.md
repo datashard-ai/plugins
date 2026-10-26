@@ -57,8 +57,8 @@ The rule, and why it holds.
 
 ## Splitting and merging
 
-Facts are kept within 4,000 characters, title, description and body together (ADR 0028). The import warns about a
-longer fact and notes one under about 300 characters (ADR 0029).
+Facts are kept within 4,000 characters, title, description and body together. The import warns about a
+longer fact and notes one under about 300 characters.
 
 **Splitting a long fact.**
 

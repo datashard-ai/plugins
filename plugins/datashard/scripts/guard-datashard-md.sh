@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs before Claude edits or writes a file (ADR 0036). A DATASHARD.md's Install line decides which install the
+# Runs before Claude edits or writes a file. A DATASHARD.md's Install line decides which install the
 # plugin may save the project's knowledge to, so a change by Claude to any DATASHARD.md asks the person first, even
 # where edits are otherwise allowed; so does a change to Claude Code's settings or plugin files, which could turn
 # these checks off or change the plugin's address. A change made through a shell command is not seen here.

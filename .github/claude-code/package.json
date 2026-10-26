@@ -1,6 +1,6 @@
 {
   "name": "ci-claude-code",
   "private": true,
-  "description": "Claude Code for CI's plugin checks, pinned with integrity by package-lock.json (ADR 0036).",
+  "description": "Claude Code for CI's plugin checks, pinned with integrity by package-lock.json.",
   "dependencies": { "@anthropic-ai/claude-code": "2.1.304" }
 }

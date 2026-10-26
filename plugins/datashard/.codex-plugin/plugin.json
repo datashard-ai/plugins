@@ -1,6 +1,6 @@
 {
   "name": "datashard",
-  "version": "0.27.2",
+  "version": "0.27.3",
   "description": "Datashard's Codex skills: $datashard-init sets a project up. The MCP connection is added with `codex mcp add` or the package's install-codex.sh.",
   "skills": "./codex/skills/",
   "mcpServers": "./codex/mcp.json",

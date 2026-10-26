@@ -1,5 +1,5 @@
 {
-  "description": "Keeps a project's saves in the Datashard install its DATASHARD.md names, and asks before Claude changes that file (ADR 0036)",
+  "description": "Keeps a project's saves in the Datashard install its DATASHARD.md names, and asks before Claude changes that file",
   "hooks": {
     "PreToolUse": [
       {
