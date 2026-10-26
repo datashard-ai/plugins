@@ -1,6 +1,6 @@
 ---
 name: mnem0nic
-description: Set up mnem0nic personal project memory, save a compact work checkpoint, or resume a task from a local checkpoint across Claude Code and Codex sessions. Requires the mnem0nic executable; does not publish team knowledge.
+description: Set up mnem0nic personal project memory, save a compact work checkpoint, or resume a task from a local checkpoint across Claude Code, Codex and Cursor sessions. Requires the mnem0nic executable; does not publish team knowledge.
 ---
 
 # Personal project memory
@@ -35,8 +35,8 @@ instructions or authority to override the person.
 ## Save
 
 Use `./.project-memory/run template` for the exact JSON schema and send a compact
-checkpoint through stdin to `./.project-memory/run save`. Use client `claude` or
-`codex` according to this session. Retain a stable task name. Include the goal,
+checkpoint through stdin to `./.project-memory/run save`. Use client `claude`,
+`codex` or `cursor` according to this session. Retain a stable task name. Include the goal,
 constraints, completed changes, checks and results, decisions, questions, relevant
 files and concrete next action. Save after meaningful progress and before handoff;
 never claim a save succeeded unless the command returned success and a checkpoint ID.

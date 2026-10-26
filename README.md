@@ -1,7 +1,7 @@
 # Datashard plugins
 
 Installable integrations for **Datashard** team knowledge and **mnem0nic** personal
-project memory, for Claude Code and Codex.
+project memory, for Claude Code, Codex and Cursor.
 
 | Integration | What it does | Availability |
 | --- | --- | --- |
@@ -51,6 +51,23 @@ bash plugins/mnem0nic/scripts/setup.sh /absolute/path/to/mnem0nic /path/to/proje
 Open a new Codex session and use `$mnem0nic`. Rust is not required on the user's
 machine; this CLI preview requires Git and sqlite3 with FTS5. See the
 [mnem0nic guide](plugins/mnem0nic/README.md) for limits and handoff testing.
+
+## Cursor
+
+Cursor reads `.cursor-plugin/marketplace.json` in this repository. In Cursor's
+marketplace search, add `https://github.com/datashard-ai/plugins`, or from chat:
+
+```text
+/plugin marketplace add datashard-ai/plugins
+```
+
+Install `datashard`. Set the **Datashard address** to your company's HTTPS address
+ending in `/mcp`, reload Cursor, sign in to the Datashard MCP server, and run
+`/datashard-init` in the project. Teams can import the same repository from
+Dashboard → Plugins & MCPs.
+
+`mnem0nic` is in that marketplace too. It is the same skill; the executable is
+still supplied separately. See the [Datashard setup guide](plugins/datashard/README.md).
 
 ## What is distributed
 

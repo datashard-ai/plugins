@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "datashard": {
+      "url": "${DATASHARD_URL}"
+    }
+  }
+}

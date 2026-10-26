@@ -90,5 +90,6 @@ Do not delete existing Claude instructions or change personal settings during in
 
 Apply the requested initialization after resolving the choices above. Show the resulting diff. A rerun with the
 same choices must not duplicate instructions or alter unrelated settings. Report changed files and any remaining
-connection steps. Explain that Codex enforces the install check through these instructions; Claude's permission
-hooks do not run as part of this setup. Start a new Codex session to load the updated project instructions.
+connection steps. Explain that Codex enforces the install check through these instructions. Claude's permission
+hooks do not run as part of this setup. Cursor has its own plugin, which checks saves in the desktop app.
+Start a new Codex session to load the updated project instructions.

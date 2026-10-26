@@ -1,0 +1,9 @@
+{
+  "name": "mnem0nic",
+  "version": "0.2.2",
+  "description": "Local checkpoint workflow preview; requires a separately installed mnem0nic executable.",
+  "author": { "name": "Datashard" },
+  "repository": "https://github.com/datashard-ai/plugins",
+  "keywords": ["memory", "checkpoints", "local"],
+  "skills": "./skills/"
+}

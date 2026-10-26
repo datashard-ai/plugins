@@ -41,7 +41,15 @@ package's Codex manifest names an empty MCP file and empty inline hooks for that
 The Datashard package's `templates/DATASHARD.md` and `skills/save-to-datashard/` are
 copies of Datashard's own agent templates, which its source keeps for agents set up
 by hand. Change both in the same piece of work; `codex/skills/datashard-init/assets/DATASHARD.md`
-must equal `templates/DATASHARD.md` (the tests check).
+must equal `templates/DATASHARD.md`, and `cursor/skills/save-to-datashard/` must equal
+`skills/save-to-datashard/` (the tests check).
+
+Cursor reads a root `.cursor-plugin/marketplace.json` before the Claude marketplace.
+Each package's `.cursor-plugin/plugin.json` is what Cursor loads: keep it at the same
+version as `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` (the tests
+check). The Datashard Cursor manifest points at its own MCP file, skills, rule and
+hooks, so Cursor does not fill in Claude's `${user_config.datashard_url}` or run
+Claude's `hooks/hooks.json`.
 
 No hosted MCP connection, account, endpoint or access permission is changed merely
 by publishing this repository. Existing installs need the documented marketplace

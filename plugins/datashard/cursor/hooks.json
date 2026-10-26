@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeMCPExecution": [
+      {
+        "command": "bash ./scripts/cursor-check-install.sh",
+        "timeout": 10,
+        "failClosed": true
+      }
+    ]
+  }
+}

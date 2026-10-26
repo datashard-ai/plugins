@@ -1,6 +1,6 @@
 # Datashard integration
 
-Connect Claude Code or Codex to your company's Datashard MCP endpoint. This package
+Connect Claude Code, Codex or Cursor to your company's Datashard MCP endpoint. This package
 contains client setup, skills and Claude permission hooks; the hosted server is not
 included. Your company supplies an HTTPS address ending in `/mcp` and account access.
 
@@ -97,6 +97,32 @@ To change Codex's address, inspect the connection with `codex mcp get datashard`
 remove it with `codex mcp remove datashard`, rerun the installer with the new address,
 and restart Codex.
 
+## Cursor
+
+Cursor loads `.cursor-plugin/plugin.json` from this package, not the Claude manifest.
+In Cursor's marketplace search, add `https://github.com/datashard-ai/plugins`, or
+from chat:
+
+```text
+/plugin marketplace add datashard-ai/plugins
+```
+
+Install `datashard`. When Cursor asks for the Datashard address, enter the company's
+HTTPS address ending in `/mcp`. Reload Cursor, sign in to the Datashard MCP server
+from Customize, and run `/datashard-init` in the project.
+
+The plugin connects to that address, brings `datashard-init` and `save-to-datashard`,
+and checks `save` and `flag` against the project's `DATASHARD.md` before they run.
+That check runs in the Cursor desktop app. A cloud agent does not run the plugin's
+MCP hook, so the `AGENTS.md` instructions `/datashard-init` writes tell it to compare
+the address itself.
+
+Change the address in the plugin's **Datashard address** setting, then reload Cursor
+before saving: the server keeps the old address until then.
+
+Do not add a second manual MCP server named `datashard` next to the plugin. Teams
+can import `https://github.com/datashard-ai/plugins` from Dashboard → Plugins & MCPs.
+
 ## Moving from the old marketplace
 
 The marketplace and plugin identifiers stay `datashard` and `datashard@datashard`.
@@ -131,4 +157,5 @@ Then turn claude-mem off, if you used it, and run `/datashard:init` (or
 tool you run, and suggests mnem0nic when it finds claude-mem.
 
 References: [Claude marketplaces](https://code.claude.com/docs/en/plugin-marketplaces),
-[Codex MCP](https://developers.openai.com/codex/mcp).
+[Codex MCP](https://developers.openai.com/codex/mcp),
+[Cursor plugins](https://cursor.com/docs/plugins).

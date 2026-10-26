@@ -1,6 +1,6 @@
 # mnem0nic integration — preview
 
-Personal, project-local checkpoints shared between Claude Code and Codex. No account
+Personal, project-local checkpoints shared between Claude Code, Codex and Cursor. No account
 or Datashard subscription is required. This package supplies instructions and setup,
 not the Rust source or executable.
 
@@ -26,7 +26,7 @@ even when client shells do not inherit your PATH. Keep the executable at that pa
 Existing checkpoints and surrounding instructions are preserved. The optional Codex
 skill installer refuses to overwrite a differing existing skill.
 
-For Claude, add the marketplace and install `mnem0nic@datashard`. The plugin exposes
+For Claude or Cursor, add the marketplace and install `mnem0nic@datashard`. The plugin exposes
 `/mnem0nic:mnem0nic`; ask it to set up the project using your executable path, save a
 checkpoint or resume a task. Setup can also be done directly by the script above.
 For Codex, restart after setup and use `$mnem0nic`. A compatibility manifest is also

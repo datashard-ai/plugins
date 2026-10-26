@@ -89,6 +89,90 @@ describe('the package for Codex', () => {
   });
 });
 
+// Cursor reads .cursor-plugin/marketplace.json before the Claude one. Without its own manifest it would load
+// Claude's .mcp.json, whose ${user_config.datashard_url} Cursor never fills in, and Claude's hooks/hooks.json.
+describe('the package for Cursor', () => {
+  const cursor = json(join(plugin, '.cursor-plugin/plugin.json'));
+
+  it('is the same plugin at the same version as the Claude one', () => {
+    assert.equal(cursor.name, 'datashard');
+    assert.equal(cursor.version, json(join(plugin, '.claude-plugin/plugin.json')).version);
+    assert.equal(json(join(plugin, '.codex-plugin/plugin.json')).version, cursor.version);
+  });
+
+  it('connects over HTTP at the address the person sets, and does not load Claude hooks', () => {
+    assert.equal(cursor.mcpServers, './cursor/mcp.json');
+    assert.deepEqual(json(join(plugin, cursor.mcpServers)), {
+      mcpServers: { datashard: { url: '${DATASHARD_URL}' } },
+    });
+    assert.deepEqual(cursor.variables.required, ['DATASHARD_URL']);
+    assert.equal(cursor.variables.properties.DATASHARD_URL.type, 'string');
+    assert.equal(cursor.hooks, './cursor/hooks.json');
+    assert.equal(cursor.skills, './cursor/skills/');
+    assert.equal(cursor.rules, './cursor/rules/');
+    const hooks = json(join(plugin, cursor.hooks));
+    assert.equal(hooks.hooks.beforeMCPExecution[0].command, 'bash ./scripts/cursor-check-install.sh');
+    assert.equal(hooks.hooks.beforeMCPExecution[0].failClosed, true);
+    assert.equal(hooks.hooks.PreToolUse, undefined);
+  });
+
+  it('ships the same save skill as Claude', () => {
+    for (const name of ['SKILL.md', 'fact-format.md']) {
+      assert.equal(
+        read(join(plugin, 'cursor/skills/save-to-datashard', name)),
+        read(join(plugin, 'skills/save-to-datashard', name)),
+      );
+    }
+  });
+});
+
+describe('the Cursor save check', () => {
+  const script = join(plugin, 'scripts/cursor-check-install.sh');
+  const projects = [];
+  afterEach(() => projects.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
+  const run = (body) => {
+    const result = spawnSync('/bin/bash', [script], { input: JSON.stringify(body), encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  };
+  const project = (install) => {
+    const dir = mkdtempSync(join(tmpdir(), 'datashard-cursor-'));
+    projects.push(dir);
+    if (install !== undefined) writeFileSync(join(dir, 'DATASHARD.md'), `## This project\n- Install: ${install}\n`);
+    return dir;
+  };
+
+  it('allows a search, and a save on another server', () => {
+    assert.equal(run({ tool_name: 'search', mcp_server_name: 'datashard', url: 'https://example.com/mcp', workspace_roots: ['/tmp'] }).permission, 'allow');
+    assert.equal(run({ tool_name: 'save', mcp_server_name: 'linear', url: 'https://example.com/mcp', workspace_roots: ['/tmp'] }).permission, 'allow');
+  });
+
+  it('denies a save to a different install, using the server address rather than a field inside the call', () => {
+    const dir = project('https://other.example.com/mcp');
+    const decision = run({
+      tool_name: 'save',
+      mcp_server_name: 'plugin-datashard-datashard',
+      mcp_server_url: 'https://example.com/mcp',
+      tool_input: '{"url":"https://evil.example/mcp"}',
+      workspace_roots: [dir],
+    });
+    assert.equal(decision.permission, 'deny');
+    contains(decision.user_message, 'https://example.com');
+    lacks(decision.user_message, 'evil.example');
+    lacks(decision.user_message, 'Claude Code');
+    lacks(decision.user_message, '/datashard:init');
+    contains(decision.user_message, '/datashard-init');
+  });
+
+  it('asks when the project names no install, and allows a matching one', () => {
+    const missing = run({ tool_name: 'flag', mcp_server_name: 'datashard', url: 'https://example.com/mcp', workspace_roots: [project()] });
+    assert.equal(missing.permission, 'ask');
+    lacks(missing.user_message, 'Claude Code');
+    const same = run({ tool_name: 'save', mcp_server_name: 'datashard', url: 'https://example.com/mcp', workspace_roots: [project('https://example.com/mcp')] });
+    assert.equal(same.permission, 'allow');
+  });
+});
+
 describe("the package's tests", () => {
   it('run in CI, every file under tests/', () => {
     contains(read(join(root, '.github/workflows/ci.yml')), 'node --test tests/*.test.mjs');
@@ -102,6 +186,12 @@ describe('the marketplace', () => {
     const entry = marketplace.plugins.find((p) => p.name === 'datashard');
     assert.equal(entry.source, './plugins/datashard');
     assert.equal(entry.version, undefined);
+    const cursorMarket = json(join(root, '.cursor-plugin/marketplace.json'));
+    assert.equal(cursorMarket.name, 'datashard');
+    assert.deepEqual(cursorMarket.plugins.map((p) => p.name), ['datashard', 'mnem0nic']);
+    for (const item of cursorMarket.plugins) {
+      assert.equal(existsSync(join(root, item.source, '.cursor-plugin/plugin.json')), true, item.source);
+    }
   });
 
   it("names this repository as the plugin's home", () => {
@@ -120,7 +210,10 @@ describe('/datashard:init', () => {
   it('fills in every placeholder the template leaves', () => {
     const placeholders = new Set(template.match(/<[^<>\n]+>/g));
     assert.ok(placeholders.size > 0);
-    for (const placeholder of placeholders) contains(init, placeholder, placeholder);
+    const cursorInit = read(join(plugin, 'cursor/skills/datashard-init/SKILL.md'));
+    for (const skill of [init, cursorInit]) {
+      for (const placeholder of placeholders) contains(skill, placeholder, placeholder);
+    }
   });
 
   it("knows the server's seven tools, in the template and as the plugin names them", () => {
@@ -155,6 +248,7 @@ describe('/datashard:init', () => {
 describe('the memory sections of DATASHARD.md', () => {
   const section = (heading) => template.match(new RegExp(`^## ${heading}\\n[\\s\\S]*?(?=^## |(?![\\s\\S]))`, 'm'))?.[0];
   const codexInit = read(join(plugin, 'codex/skills/datashard-init/SKILL.md'));
+  const cursorInit = read(join(plugin, 'cursor/skills/datashard-init/SKILL.md'));
   const installer = 'curl -fsSL https://raw.githubusercontent.com/datashard-ai/mnem0nic/main/install.sh | sh';
 
   it('has one for mnem0nic, which keeps fact ids only and needs nothing configured', () => {
@@ -173,16 +267,17 @@ describe('the memory sections of DATASHARD.md', () => {
   const flat = (text) => text.replace(/\s+/g, ' ');
 
   it('are chosen by the memory tool the person runs, in both inits', () => {
-    for (const skill of [init, codexInit].map(flat)) {
+    for (const skill of [init, codexInit, cursorInit].map(flat)) {
       contains(skill, 'command -v mnem0nic');
       contains(skill, '`claude-mem@…`');
     }
     contains(flat(init), '**mnem0nic, without claude-mem:** offer to remove the `## claude-mem` section');
     contains(flat(codexInit), 'With mnem0nic and no claude-mem, offer to remove the `## claude-mem` section');
+    contains(flat(cursorInit), 'With mnem0nic and no claude-mem, offer to remove the `## claude-mem` section');
   });
 
   it('suggest mnem0nic to someone on claude-mem, with its direct install, only where it runs', () => {
-    for (const skill of [init, codexInit].map(flat)) {
+    for (const skill of [init, codexInit, cursorInit].map(flat)) {
       contains(skill, installer);
       contains(skill, 'mnem0nic install');
       contains(skill, 'mnem0nic import-claude-mem');

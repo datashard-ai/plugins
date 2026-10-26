@@ -16,11 +16,12 @@ function executable(p,body) { writeFileSync(p,'#!/bin/bash\nset -eu\n'+body,{mod
 const ds='plugins/datashard/scripts/install-codex.sh';
 const mn='plugins/mnem0nic/scripts/setup.sh';
 const packageFiles = [
- 'plugins/datashard/.claude-plugin/plugin.json','plugins/datashard/.codex-plugin/plugin.json','plugins/datashard/codex/mcp.json','plugins/datashard/.mcp.json','plugins/datashard/README.md',
- 'plugins/datashard/hooks/hooks.json','plugins/datashard/scripts/check-install.sh','plugins/datashard/scripts/guard-datashard-md.sh','plugins/datashard/scripts/install-codex.sh',
+ 'plugins/datashard/.claude-plugin/plugin.json','plugins/datashard/.codex-plugin/plugin.json','plugins/datashard/.cursor-plugin/plugin.json','plugins/datashard/codex/mcp.json','plugins/datashard/.mcp.json','plugins/datashard/README.md',
+ 'plugins/datashard/hooks/hooks.json','plugins/datashard/cursor/hooks.json','plugins/datashard/cursor/mcp.json','plugins/datashard/cursor/rules/datashard.mdc','plugins/datashard/scripts/check-install.sh','plugins/datashard/scripts/cursor-check-install.sh','plugins/datashard/scripts/guard-datashard-md.sh','plugins/datashard/scripts/install-codex.sh',
  'plugins/datashard/skills/init/SKILL.md','plugins/datashard/skills/save-to-datashard/SKILL.md','plugins/datashard/skills/save-to-datashard/fact-format.md','plugins/datashard/templates/DATASHARD.md',
  'plugins/datashard/codex/skills/datashard-init/SKILL.md','plugins/datashard/codex/skills/datashard-init/assets/DATASHARD.md','plugins/datashard/codex/skills/datashard-init/agents/openai.yaml',
- 'plugins/mnem0nic/.claude-plugin/plugin.json','plugins/mnem0nic/.codex-plugin/plugin.json','plugins/mnem0nic/README.md','plugins/mnem0nic/scripts/setup.sh','plugins/mnem0nic/skills/mnem0nic/SKILL.md'
+ 'plugins/datashard/cursor/skills/datashard-init/SKILL.md','plugins/datashard/cursor/skills/save-to-datashard/SKILL.md','plugins/datashard/cursor/skills/save-to-datashard/fact-format.md',
+ 'plugins/mnem0nic/.claude-plugin/plugin.json','plugins/mnem0nic/.codex-plugin/plugin.json','plugins/mnem0nic/.cursor-plugin/plugin.json','plugins/mnem0nic/README.md','plugins/mnem0nic/scripts/setup.sh','plugins/mnem0nic/skills/mnem0nic/SKILL.md'
 ];
 function files(dir) { return readdirSync(dir).flatMap(n=>{const p=join(dir,n); const s=lstatSync(p); assert.ok(!s.isSymbolicLink(),`Distribution cannot contain symlink: ${p}`);return s.isDirectory()?files(p):[relative(root,p)];}); }
 
@@ -43,6 +44,9 @@ test('marketplace packages and their component paths resolve inside the distribu
  }
  const codex=json('plugins/mnem0nic/.codex-plugin/plugin.json');
  assert.ok(existsSync(join(root,'plugins/mnem0nic',codex.skills,'mnem0nic/SKILL.md')));
+ const mnemClaude=json('plugins/mnem0nic/.claude-plugin/plugin.json');
+ assert.equal(codex.version, mnemClaude.version);
+ assert.equal(json('plugins/mnem0nic/.cursor-plugin/plugin.json').version, mnemClaude.version);
  const mcp=json('plugins/datashard/.mcp.json');
  assert.equal(mcp.mcpServers.datashard.url,'${user_config.datashard_url}');
  assert.ok(!existsSync(join(root,'plugins/mnem0nic/.mcp.json')));
@@ -120,7 +124,7 @@ test('memory setup supports SQLite with double-quoted strings disabled',t=>{
 test('every tracked repository file belongs to the reviewed distribution',()=>{
  const r=spawnSync('git',['-C',root,'ls-files','-z'],{encoding:'utf8'});
  assert.equal(r.status,0,r.stderr);
- const allowed=new Set([...packageFiles,'.claude-plugin/marketplace.json','.gitignore','README.md','MAINTAINING.md',
+ const allowed=new Set([...packageFiles,'.claude-plugin/marketplace.json','.cursor-plugin/marketplace.json','.gitignore','README.md','MAINTAINING.md',
   '.github/workflows/ci.yml','.github/dependabot.yml','.github/claude-code/package.json','.github/claude-code/package-lock.json',
   'tests/packages.test.mjs','tests/datashard.test.mjs','tests/release-checks.test.mjs','tests/version-check.sh','tests/open-prs-check.sh']);
  for(const file of r.stdout.split('\0').filter(Boolean)) assert.ok(allowed.has(file),`Unreviewed tracked file: ${file}`);

@@ -58,7 +58,8 @@ stop: the project belongs to that install.
   '*/node_modules/*'`). Then ask whether this section's facts live there; if so, the bundle is that folder's path from
   the root, e.g. `.okf/`.
 - **Other agents:** ask whether Codex, Cursor or another agent also works here (an `AGENTS.md`, `.cursor/`,
-  `.cursorrules` or `.codex/` is a hint). They don't load Claude Code plugins.
+  `.cursorrules` or `.codex/` is a hint). They don't load Claude Code plugins. Cursor installs this
+  repository's Cursor plugin and runs `/datashard-init`. Codex uses `$datashard-init`.
 
 ## 3. Write DATASHARD.md
 
