@@ -26,6 +26,33 @@ describe("the package's copies of its templates", () => {
   it('keeps the DATASHARD.md that Codex init fills in equal to the one Claude Code init fills in', () => {
     assert.equal(read(join(plugin, 'codex/skills/datashard-init/assets/DATASHARD.md')), template);
   });
+
+  // The words Datashard's own save skill uses for the evidence score; the Cursor copy is checked to equal this one below.
+  it('asks the save skill to score the evidence', () => {
+    const skill = read(join(plugin, 'skills/save-to-datashard/SKILL.md'));
+    for (const phrase of [
+      'Source authority 30',
+      'Corroboration 20',
+      'Direct evidence 20',
+      'Consistency 15',
+      'Freshness 10',
+      'Scope and identity 5',
+      'a system of record needs no second source',
+      'at most 8',
+      'claims only what the source says',
+      "a fact saved without a person's yes counts for nothing",
+      'at least 15 for direct evidence and at least 5 for freshness',
+      "The score never replaces the person's yes",
+      // A high total does not make a price or an access change skimmable: the costly kinds are read closely whatever the total.
+      'Whatever the total',
+      'a decision, a price or rate, a contract or SLA, access and roles, a credential, security posture or a role change',
+      'any change that rests on a mail or on text anyone with access can write',
+      "must be read closely before the person's yes",
+      '<!-- evidence-score:start -->',
+      '<!-- evidence-score:end -->',
+    ]) contains(skill, phrase);
+    assert.doesNotMatch(skill, /ADR \d/);
+  });
 });
 
 describe("the plugin's MCP server", () => {

@@ -11,6 +11,7 @@ Facts are kept small: one topic each, within 4,000 characters, a long text split
 ## 1. Check what is there
 
 - `search` Datashard for the topic: 2–6 distinctive words, and the project's tags (see `DATASHARD.md`).
+- Keep the terms you searched with; the score asks for them.
 - With a bundle, also search its files: they may hold changes not imported yet.
 - Read the closest facts. If one already covers the topic, update it rather than add a new one. A short addition
   goes into that fact when the result stays within 4,000 characters.
@@ -47,6 +48,14 @@ section is the project's (see `DATASHARD.md`) unless the person names another. A
 go in `commercial`, never in its client section. Show when the fact should be reviewed too, as `reviewIn`:
 pricing and rates `90d`, customer context `60d`, runbooks and architecture `6m`, policies `1y`, decisions `never`; left
 out, its section's interval applies. Save only after the person says yes; one yes covers all the facts shown together.
+
+<!-- evidence-score:start -->
+Score the evidence behind each fact about to be saved, out of 100, and show the person the six points and the total with the exact text. Source authority 30: is it the system of record for this kind of fact (a merge in GitHub for whether a change merged, a ticket's status in the tracker for the ticket's state). Corroboration 20: independent sources agree; a system of record needs no second source; two sources are one when one links to, quotes or was set by the other, and a fact saved without a person's yes counts for nothing. Direct evidence 20: the source says it outright, with no inference step. Consistency 15: it agrees with other facts and records, never judged against the fact being updated; give full marks only if a search for related facts was recorded with terms from this fact or change, otherwise at most 8. Freshness 10: the evidence is current for a fact that can change. Scope and identity 5: the right project, client and environment (prod, UAT or dev). Floors: full marks for authority, consistency and scope, at least 15 for direct evidence and at least 5 for freshness.
+
+Write the change so it claims only what the source says. Score only what you read in this run, and give a one-line reason for each criterion below full marks. One score per fact shown. For a retirement, score the evidence that the fact no longer holds.
+
+A total of 90 or more with every floor met tells the person the text can be skimmed; a lower total tells the person to read it closely. Whatever the total, a decision, a price or rate, a contract or SLA, access and roles, a credential, security posture or a role change, and any change that rests on a mail or on text anyone with access can write, must be read closely before the person's yes. If the person's edit or yours changes the text after the score was shown, score it again. The score never replaces the person's yes.
+<!-- evidence-score:end -->
 
 ## 4. Save
 
