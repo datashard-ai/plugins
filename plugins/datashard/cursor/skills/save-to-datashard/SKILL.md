@@ -54,7 +54,7 @@ Score the evidence behind each fact about to be saved, out of 100, and show the 
 
 Write the change so it claims only what the source says. Score only what you read in this run, and give a one-line reason for each criterion below full marks. One score per fact shown. For a retirement, score the evidence that the fact no longer holds.
 
-A total of 90 or more with every floor met tells the person the text can be skimmed; a lower total tells the person to read it closely. Whatever the total, a decision, a price or rate, a contract or SLA, access and roles, a credential, security posture or a role change, and any change that rests on a mail or on text anyone with access can write, must be read closely before the person's yes. If the person's edit or yours changes the text after the score was shown, score it again. The score never replaces the person's yes.
+A total of 90 or more with every floor met tells the person the text can be skimmed; a lower total tells the person to read it closely. Whatever the total, a decision, a price or rate, a contract or SLA, access and roles, a credential, security posture or a role change, and any change that rests on a mail or on text anyone with access can write, must be read closely before the person's yes. Show the person the terms the search used, next to the consistency points: full marks for consistency rest on that search. If the person's edit or yours changes the text after the score was shown, score it again. The score never replaces the person's yes.
 <!-- evidence-score:end -->
 
 ## 4. Save

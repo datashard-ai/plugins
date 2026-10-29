@@ -48,6 +48,10 @@ describe("the package's copies of its templates", () => {
       'a decision, a price or rate, a contract or SLA, access and roles, a credential, security posture or a role change',
       'any change that rests on a mail or on text anyone with access can write',
       "must be read closely before the person's yes",
+      // Full marks for consistency rest on the search, so the person sees its terms; the skill's step 1 tells the agent to keep them.
+      'the terms the search used',
+      'next to the consistency points',
+      'Keep the terms you searched with',
       '<!-- evidence-score:start -->',
       '<!-- evidence-score:end -->',
     ]) contains(skill, phrase);
