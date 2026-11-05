@@ -214,6 +214,16 @@ describe('the Codex save check', () => {
     lacks(missing.permissionDecisionReason, 'Claude Code');
     const placeholder = run({ tool_name: 'mcp__datashard__save', cwd: project('https://example.com/mcp') }, config('https://example.invalid/mcp'));
     assert.equal(placeholder.permissionDecision, 'deny');
+    lacks(placeholder.permissionDecisionReason, '/config');
+    lacks(placeholder.permissionDecisionReason, 'Claude Code');
+    contains(placeholder.permissionDecisionReason, 'codex mcp add');
+    // a DATASHARD.md that names no install
+    const unnamed = project();
+    writeFileSync(join(unnamed, 'DATASHARD.md'), '## This project\n- Section: datashard\n');
+    const naming = run({ tool_name: save, cwd: unnamed }, config('https://example.com/mcp'));
+    assert.equal(naming.permissionDecision, 'deny');
+    lacks(naming.permissionDecisionReason, 'Claude Code');
+    lacks(naming.permissionDecisionReason, '/datashard:init');
     const same = run({ tool_name: 'mcp__datashard__save', cwd: project('https://example.com/mcp') }, config('https://example.com/mcp'));
     assert.equal(same.permissionDecision, 'allow');
   });
@@ -255,7 +265,7 @@ describe('the Codex save check', () => {
     assert.equal(run({ tool_name: 'search' }, config('https://example.com/mcp')).permissionDecision, 'allow');
   });
 
-  it("asks Codex for the datashard server's address, so a profile or override counts", () => {
+  it("asks Codex for the datashard server's address, ahead of reading config.toml", () => {
     const stale = config('https://stale.example.com/mcp');
     const codexBin = fakeCodex('https://example.com/mcp');
     const body = (cwd) => JSON.stringify({ tool_name: save, cwd });
@@ -299,18 +309,28 @@ describe('the Codex save check', () => {
       assert.equal(result.status, 0, result.stderr);
       assert.equal(result.stdout.trim(), '');
     });
+    // The wrapper blocks with the same deny JSON as the script, so whatever fails, Codex sees one kind of answer.
+    const denied = (result) => {
+      assert.equal(result.status, 0, result.stderr);
+      const output = JSON.parse(result.stdout).hookSpecificOutput;
+      assert.equal(output.permissionDecision, 'deny');
+      return output.permissionDecisionReason;
+    };
+    const withNodePath = `${dirname(process.execPath)}:/usr/bin:/bin`;
     it('blocks the save, saying what to do, when node is not installed', () => {
       // a PATH with the shell tools the command uses, and no node
       const bare = temp('datashard-codex-nopath-');
       for (const tool of ['sh', 'cat']) symlinkSync(`/bin/${tool}`, join(bare, tool));
-      const result = sh({ PLUGIN_ROOT: plugin, PATH: bare });
-      assert.equal(result.status, 2, result.stderr);
-      contains(result.stderr, 'node is not on PATH');
+      contains(denied(sh({ PLUGIN_ROOT: plugin, PATH: bare })), 'node is not on PATH');
     });
     it('blocks the save, saying what to do, when the check script is missing', () => {
-      const result = sh({ PLUGIN_ROOT: temp('datashard-codex-noscript-'), PATH: `${dirname(process.execPath)}:/usr/bin:/bin` });
-      assert.equal(result.status, 2);
-      contains(result.stderr, 'is missing');
+      contains(denied(sh({ PLUGIN_ROOT: temp('datashard-codex-noscript-'), PATH: withNodePath })), 'is missing');
+    });
+    it('blocks the save when the check itself fails to run', () => {
+      const root = temp('datashard-codex-crash-');
+      mkdirSync(join(root, 'scripts'));
+      writeFileSync(join(root, 'scripts/codex-check-install.mjs'), 'this is not javascript (');
+      contains(denied(sh({ PLUGIN_ROOT: root, PATH: withNodePath })), 'failed to run');
     });
   });
 });
