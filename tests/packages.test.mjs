@@ -17,10 +17,11 @@ const ds='plugins/datashard/scripts/install-codex.sh';
 const mn='plugins/mnem0nic/scripts/setup.sh';
 const packageFiles = [
  'plugins/datashard/.claude-plugin/plugin.json','plugins/datashard/.codex-plugin/plugin.json','plugins/datashard/.cursor-plugin/plugin.json','plugins/datashard/codex/mcp.json','plugins/datashard/.mcp.json','plugins/datashard/README.md',
- 'plugins/datashard/hooks/hooks.json','plugins/datashard/cursor/hooks.json','plugins/datashard/cursor/mcp.json','plugins/datashard/cursor/rules/datashard.mdc','plugins/datashard/scripts/check-install.sh','plugins/datashard/scripts/cursor-check-install.sh','plugins/datashard/scripts/guard-datashard-md.sh','plugins/datashard/scripts/install-codex.sh',
+ 'plugins/datashard/hooks/hooks.json','plugins/datashard/codex/hooks.json','plugins/datashard/cursor/hooks.json','plugins/datashard/cursor/mcp.json','plugins/datashard/cursor/rules/datashard.mdc','plugins/datashard/scripts/check-install.sh','plugins/datashard/scripts/codex-check-install.sh','plugins/datashard/scripts/cursor-check-install.sh','plugins/datashard/scripts/guard-datashard-md.sh','plugins/datashard/scripts/install-codex.sh',
  'plugins/datashard/skills/init/SKILL.md','plugins/datashard/skills/save-to-datashard/SKILL.md','plugins/datashard/skills/save-to-datashard/fact-format.md','plugins/datashard/templates/DATASHARD.md',
  'plugins/datashard/skills/review-with-datashard/SKILL.md','plugins/datashard/skills/review-with-datashard/ai_review.py','plugins/datashard/skills/review-with-datashard/prompt.md','plugins/datashard/skills/review-with-datashard/schema.json',
  'plugins/datashard/codex/skills/datashard-init/SKILL.md','plugins/datashard/codex/skills/datashard-init/assets/DATASHARD.md','plugins/datashard/codex/skills/datashard-init/agents/openai.yaml',
+ 'plugins/datashard/codex/skills/save-to-datashard/SKILL.md','plugins/datashard/codex/skills/save-to-datashard/fact-format.md',
  'plugins/datashard/cursor/skills/datashard-init/SKILL.md','plugins/datashard/cursor/skills/save-to-datashard/SKILL.md','plugins/datashard/cursor/skills/save-to-datashard/fact-format.md',
  'plugins/mnem0nic/.claude-plugin/plugin.json','plugins/mnem0nic/.codex-plugin/plugin.json','plugins/mnem0nic/.cursor-plugin/plugin.json','plugins/mnem0nic/README.md','plugins/mnem0nic/scripts/setup.sh','plugins/mnem0nic/skills/mnem0nic/SKILL.md'
 ];
