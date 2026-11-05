@@ -15,7 +15,8 @@ Stdlib only. From inside any repo or worktree:
     python3 <skill dir>/ai_review.py --skip 'docs/**' --model claude-opus-5-5 --effort high
 
 Exits 1 when a finding is medium or more severe (change the threshold with --fail-on), and 2 when no review could be
-produced, so "no output" is never mistaken for "nothing found".
+produced, so "no output" is never mistaken for "nothing found". A CLI that has not answered within 900 seconds
+(change that with --timeout) is stopped and counts as no review.
 """
 
 from __future__ import annotations
@@ -48,11 +49,19 @@ DEFAULT_SKIP = [
 
 MAX_DIFF_CHARS = 300000
 
+# How long the claude CLI may take before it is stopped. A hung CLI must end in an exit 2, not in a review that never
+# reports.
+CLAUDE_TIMEOUT = 900
+
 SEV_ICON = {"blocker": "🛑", "high": "🔴", "medium": "🟠", "low": "⚪"}
 SEV_ORDER = {"blocker": 0, "high": 1, "medium": 2, "low": 3}
 FAIL_ON = ["blocker", "high", "medium", "low", "never"]
 
 FILE_HEADER = re.compile(r"^diff --git a/.* b/(.*)$", re.MULTILINE)
+
+# What `git diff` is told, so that the person's own git settings (diff.external, diff.noprefix, color) cannot change what
+# the model sees or break the a/ and b/ headers that truncate() reads.
+DIFF_FLAGS = ["--no-ext-diff", "--no-textconv", "--no-color", "--src-prefix=a/", "--dst-prefix=b/"]
 
 
 def load_prompt() -> str:
@@ -99,10 +108,10 @@ def collect_diff(repo: str, base: str, mode: str, skip: list[str]) -> tuple[str,
             target, described = [merge_base], f"branch work + uncommitted changes vs {base} ({merge_base[:8]})"
 
     pathspecs = ["--", "."] + [f":(exclude,glob){pattern}" for pattern in skip]
-    every = git(repo, "diff", "--name-only", *target).splitlines()
-    kept = set(git(repo, "diff", "--name-only", *target, *pathspecs).splitlines())
+    every = git(repo, "diff", *DIFF_FLAGS, "--name-only", *target).splitlines()
+    kept = set(git(repo, "diff", *DIFF_FLAGS, "--name-only", *target, *pathspecs).splitlines())
     skipped = [name for name in every if name and name not in kept]
-    return git(repo, "diff", *target, *pathspecs), described, skipped
+    return git(repo, "diff", *DIFF_FLAGS, *target, *pathspecs), described, skipped
 
 
 def truncate(diff: str, limit: int) -> tuple[str, list[str]]:
@@ -110,6 +119,9 @@ def truncate(diff: str, limit: int) -> tuple[str, list[str]]:
     if len(diff) <= limit:
         return diff, []
     starts = [(m.start(), m.group(1)) for m in FILE_HEADER.finditer(diff)]
+    if not starts:
+        # No file header to cut at or to name: say the whole diff was cut, not that nothing was.
+        return diff[:limit], ["the whole diff"]
     fits = [start for start, _ in starts if 0 < start <= limit]
     if not fits:
         # Not even the first file fits: keep its head, and name it with every file after it.
@@ -125,17 +137,27 @@ def commit_subjects(repo: str, base: str) -> list[str]:
     return [line for line in out.splitlines() if line][:30]
 
 
+def fence_for(*texts: str) -> str:
+    """A code fence longer than any run of backticks in `texts` (at least three), so none of them can close it."""
+    longest = max((len(run) for text in texts for run in re.findall(r"`+", text)), default=0)
+    return "`" * max(3, longest + 1)
+
+
 def build_prompt(branch: str, subjects: list[str], diff: str, cut: list[str], skipped: list[str]) -> str:
     said = "\n".join(f"- {s}" for s in subjects) or "(no commits yet)"
-    prompt = f"""Branch: {branch}
+    # The branch name, the commit subjects and the diff are the author's text: all of it goes inside a fenced block.
+    fence = fence_for(branch, said, diff)
+    prompt = f"""{fence}text
+Branch: {branch}
 
 What the commits say:
 {said}
+{fence}
 
 Diff:
-```diff
+{fence}diff
 {diff}
-```
+{fence}
 """
     if cut:
         prompt += f"\nNot reviewed, cut for length: {', '.join(cut)}. Say in the summary that these were not reviewed.\n"
@@ -180,7 +202,9 @@ def parse_envelope(stdout: str) -> dict | None:
     return None
 
 
-def review(prompt: str, model: str | None, effort: str | None) -> tuple[dict | None, dict]:
+def review(
+    prompt: str, model: str | None, effort: str | None, timeout: int = CLAUDE_TIMEOUT
+) -> tuple[dict | None, dict]:
     """Runs the claude CLI in print mode. Returns (result, envelope)."""
     cmd = [
         "claude",
@@ -200,7 +224,11 @@ def review(prompt: str, model: str | None, effort: str | None) -> tuple[dict | N
     if effort:
         cmd += ["--effort", effort]
 
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True)
+    try:
+        proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(f"claude did not answer within {timeout} seconds and was stopped; see --timeout", file=sys.stderr)
+        return None, {}
     if proc.returncode != 0:
         print(f"claude exited {proc.returncode}: {proc.stderr.strip()[:500]}", file=sys.stderr)
         return None, {}
@@ -302,10 +330,14 @@ def run() -> int:
                     help="exit 1 when a finding is this severe or more (default: medium)")
     ap.add_argument("--model", help="model to review with (default: the CLI's)")
     ap.add_argument("--effort", choices=["low", "medium", "high", "xhigh", "max"], help="effort level")
+    ap.add_argument("--timeout", type=int, default=CLAUDE_TIMEOUT, metavar="SECONDS",
+                    help=f"stop the claude CLI after this many seconds and exit 2 (default {CLAUDE_TIMEOUT})")
     args = ap.parse_args()
 
     if args.staged and args.branch:
         return ap.error("--staged and --branch cannot be used together")
+    if args.timeout <= 0:
+        return ap.error("--timeout must be a positive number of seconds")
     if not shutil.which("claude"):
         print("the `claude` CLI is not on PATH", file=sys.stderr)
         return 2
@@ -325,7 +357,7 @@ def run() -> int:
     prompt = build_prompt(branch, commit_subjects(repo, base), diff, cut, skipped)
 
     print(f"reviewing {described} ({len(diff):,} chars)...", file=sys.stderr)
-    result, envelope = review(prompt, args.model, args.effort)
+    result, envelope = review(prompt, args.model, args.effort, args.timeout)
     if not well_formed(result):
         print("no reviewable result; failing rather than reporting a clean run", file=sys.stderr)
         return 2

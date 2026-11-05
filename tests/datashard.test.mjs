@@ -297,10 +297,29 @@ describe('/datashard:review-with-datashard', () => {
     for (const file of ['SKILL.md', 'ai_review.py']) lacks(read(join(skillDir, file)), 'python3 ../', `${file} contains python3 ../`);
   });
 
-  it("compares the checkout's HEAD with the pull request's head, since the script reviews HEAD", () => {
-    contains(skill, '`git -C <path> rev-parse HEAD`');
-    contains(skill, 'must both equal `headRefOid`');
-    contains(skill, 'check the branch out in `<path>`');
+  // The skill's text on one line per paragraph, so a phrase is found wherever the file wraps it.
+  const oneLine = skill.replace(/\s+/g, ' ');
+
+  it("compares the checkout's HEAD with the branch in every case, since the script reviews HEAD", () => {
+    contains(oneLine, '`git -C <path> rev-parse HEAD` must equal `git -C <path> rev-parse <branch>`, with or without a pull request and whether or not the branch was pushed');
+    // The comparison with the pull request's head, or origin's branch, stays.
+    contains(oneLine, '`<branch>` must equal `headRefOid` (with no pull request, or when `gh pr view` failed, `origin/<branch>` when it exists)');
+    contains(oneLine, 'check the branch out in `<path>`');
+    lacks(oneLine, 'must both equal');
+  });
+
+  it('takes the base from origin when gh cannot read the pull request, as it does with no pull request', () => {
+    contains(oneLine, 'On any other failure (not signed in to `gh`, a remote that is not on GitHub), say the pull request\'s text was not checked, and take `<base>` the same way');
+  });
+
+  it('quotes the skill folder in the command and says where it is in a plugin install', () => {
+    contains(skill, 'python3 "<skill dir>/ai_review.py"');
+    contains(oneLine, '(in a plugin install, `${CLAUDE_PLUGIN_ROOT}/skills/review-with-datashard`)');
+    assert.equal(existsSync(skillDir), true);
+  });
+
+  it('says which session it means, since the review agent has none of its own', () => {
+    lacks(skill, 'this session');
   });
 
   it('names only files the skill folder holds', () => {
@@ -373,7 +392,7 @@ describe('the memory sections of DATASHARD.md', () => {
 
 // The hooks run under /bin/bash: bash 3.2 on macOS, where most people run Claude Code, and bash 5 on CI's Linux.
 describe('the save check, before every save', () => {
-  const address = 'https://xbt.example.dev/mcp';
+  const address = 'https://ours.example.dev/mcp';
   const script = join(plugin, 'scripts/check-install.sh');
   const projects = [];
   afterEach(() => projects.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
@@ -416,15 +435,15 @@ describe('the save check, before every save', () => {
 
   it('lets a save through to the install the project names', () => {
     decides(check(project(address)), undefined);
-    decides(check(project('HTTPS://XBT.example.dev/mcp/')), undefined);
-    decides(check(project('https://xbt.example.dev')), undefined);
-    decides(check(project('https://xbt.example.dev.:443/mcp')), undefined);
-    decides(check(project('xbt.example.dev:443')), undefined);
-    decides(check(project('https://xbt.example.dev:8443/mcp')), 'deny');
-    decides(check(project('http://xbt.example.dev:443/mcp')), 'deny');
-    decides(check(project('http://xbt.example.dev/mcp')), 'deny');
+    decides(check(project('HTTPS://OURS.example.dev/mcp/')), undefined);
+    decides(check(project('https://ours.example.dev')), undefined);
+    decides(check(project('https://ours.example.dev.:443/mcp')), undefined);
+    decides(check(project('ours.example.dev:443')), undefined);
+    decides(check(project('https://ours.example.dev:8443/mcp')), 'deny');
+    decides(check(project('http://ours.example.dev:443/mcp')), 'deny');
+    decides(check(project('http://ours.example.dev/mcp')), 'deny');
     decides(check(project('http://localhost:8787/mcp'), 'http://localhost:8787/mcp'), undefined);
-    decides(check(project('<https://xbt.example.dev/mcp>')), undefined);
+    decides(check(project('<https://ours.example.dev/mcp>')), undefined);
     decides(check(project('<https://acme.example.dev/mcp>')), 'deny');
     decides(check(project('https://[::1]:443/mcp'), 'https://[::1]/mcp'), undefined);
   });
@@ -434,8 +453,8 @@ describe('the save check, before every save', () => {
     assert.equal(decision.hookEventName, 'PreToolUse');
     decides(decision, 'deny');
     contains(decision.permissionDecisionReason, 'acme.example.dev');
-    contains(decision.permissionDecisionReason, 'https://xbt.example.dev');
-    decides(check(project('https://xbt.example.dev.evil.example/mcp')), 'deny');
+    contains(decision.permissionDecisionReason, 'https://ours.example.dev');
+    decides(check(project('https://ours.example.dev.evil.example/mcp')), 'deny');
   });
 
   it('asks, naming where the save goes, when the project names no install', () => {
@@ -443,7 +462,7 @@ describe('the save check, before every save', () => {
     for (const dir of [project(''), project('<install address>'), project('none'), project('None')]) {
       const decision = check(dir);
       decides(decision, 'ask');
-      contains(decision.permissionDecisionReason, 'https://xbt.example.dev');
+      contains(decision.permissionDecisionReason, 'https://ours.example.dev');
       contains(decision.permissionDecisionReason, '/datashard:init');
       lacks(decision.permissionDecisionReason, 'No DATASHARD.md');
     }
@@ -457,7 +476,7 @@ describe('the save check, before every save', () => {
     const decision = check(dir);
     decides(decision, 'ask');
     contains(decision.permissionDecisionReason, `No DATASHARD.md is in ${dir} or a folder above it`);
-    contains(decision.permissionDecisionReason, 'https://xbt.example.dev');
+    contains(decision.permissionDecisionReason, 'https://ours.example.dev');
     contains(decision.permissionDecisionReason, 'subfolder');
     contains(decision.permissionDecisionReason, '/datashard:init');
     lacks(decision.permissionDecisionReason, "This project's DATASHARD.md");
@@ -517,7 +536,7 @@ describe('the save check, before every save', () => {
   });
 
   it('never takes an @ after the host for the end of a password', () => {
-    decides(check(project('https://acme.example.dev/mcp'), 'https://xbt.example.dev/mcp?x=a@acme.example.dev'), 'deny');
+    decides(check(project('https://acme.example.dev/mcp'), 'https://ours.example.dev/mcp?x=a@acme.example.dev'), 'deny');
   });
 
   it('reads a DATASHARD.md with Windows line endings', () => {
@@ -525,7 +544,7 @@ describe('the save check, before every save', () => {
     writeFileSync(join(dir, 'DATASHARD.md'), '## This project\r\n\r\n- Install: https://acme.example.dev/mcp\r\n');
     decides(check(dir), 'deny');
     const same = project();
-    writeFileSync(join(same, 'DATASHARD.md'), '## This project\r\n\r\n- Install: https://xbt.example.dev/mcp\r\n');
+    writeFileSync(join(same, 'DATASHARD.md'), '## This project\r\n\r\n- Install: https://ours.example.dev/mcp\r\n');
     decides(check(same), undefined);
   });
 
@@ -563,9 +582,9 @@ describe('the save check, before every save', () => {
 
   it("never repeats credentials written into the plugin's address", () => {
     for (const secret of [
-      'https://someone:hunter2@xbt.example.dev/mcp',
-      'https://someone:hun/ter2@xbt.example.dev/mcp',
-      'https://a.example.dev:1234/hun@xbt.example.dev/mcp',
+      'https://someone:hunter2@ours.example.dev/mcp',
+      'https://someone:hun/ter2@ours.example.dev/mcp',
+      'https://a.example.dev:1234/hun@ours.example.dev/mcp',
     ]) {
       const decision = check(project('https://acme.example.dev/mcp'), secret);
       decides(decision, 'deny');

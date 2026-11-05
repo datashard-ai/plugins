@@ -131,6 +131,18 @@ test('every tracked repository file belongs to the reviewed distribution',()=>{
  for(const file of r.stdout.split('\0').filter(Boolean)) assert.ok(allowed.has(file),`Unreviewed tracked file: ${file}`);
 });
 
+test('no tracked file holds a private decision number, workspace name, local worktree path or host name',()=>{
+ // Built from pieces, so that this file does not match its own patterns.
+ const patterns=[/ADR \d{4}/,['ai','kwn'].join('-'),['datashard','platform','tools'].join('-'),['.work','trees/'].join(''),['Mac','Studio'].join('-')];
+ const r=spawnSync('git',['-C',root,'ls-files','-z'],{encoding:'utf8'});
+ assert.equal(r.status,0,r.stderr);
+ for(const file of r.stdout.split('\0').filter(Boolean)) {
+  if(!existsSync(join(root,file))) continue;
+  const body=read(file);
+  for(const pattern of patterns) assert.ok(typeof pattern==='string'?!body.includes(pattern):!pattern.test(body),`${file} holds ${pattern}`);
+ }
+});
+
 function fileGuard(project,path) {
  return spawnSync('/bin/bash',[join(root,'plugins/datashard/scripts/guard-datashard-md.sh')],{
   env:{...process.env,CLAUDE_PROJECT_DIR:project},encoding:'utf8',timeout:10000,
