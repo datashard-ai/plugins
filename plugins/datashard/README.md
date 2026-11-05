@@ -135,7 +135,10 @@ The plugin connects to that address, brings `datashard-init` and `save-to-datash
 and checks `save` and `flag` against the project's `DATASHARD.md` before they run.
 That check runs in the Cursor desktop app. A cloud agent does not run the plugin's
 MCP hook, so the `AGENTS.md` instructions `/datashard-init` writes tell it to compare
-the address itself.
+the address itself. The check needs `node` on the PATH for a call that names Datashard
+(any other MCP call is let through without it); if `node` is missing, Cursor asks
+before the save instead of staying silent. It is a best-effort guard against a save
+to the wrong install by mistake, not a security boundary.
 
 Change the address in the plugin's **Datashard address** setting, then reload Cursor
 before saving: the server keeps the old address until then.
