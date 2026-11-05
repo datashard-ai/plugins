@@ -128,7 +128,7 @@ test('every tracked repository file belongs to the reviewed distribution',()=>{
  assert.equal(r.status,0,r.stderr);
  const allowed=new Set([...packageFiles,'.claude-plugin/marketplace.json','.cursor-plugin/marketplace.json','.gitignore','README.md','MAINTAINING.md',
   '.github/workflows/ci.yml','.github/dependabot.yml','.github/claude-code/package.json','.github/claude-code/package-lock.json',
-  'tests/packages.test.mjs','tests/datashard.test.mjs','tests/release-checks.test.mjs','tests/version-check.sh','tests/open-prs-check.sh','tests/test_ai_review.py']);
+  'tests/packages.test.mjs','tests/datashard.test.mjs','tests/release-checks.test.mjs','tests/version-check.sh','tests/open-prs-check.sh','tests/test_ai_review.py','LICENSE.md']);
  for(const file of r.stdout.split('\0').filter(Boolean)) assert.ok(allowed.has(file),`Unreviewed tracked file: ${file}`);
 });
 

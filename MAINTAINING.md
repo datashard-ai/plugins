@@ -72,8 +72,8 @@ when the corresponding release and protocol implementation have been validated.
 
 Before publishing, run the package tests and review the complete Git file list.
 Ensure GitHub repository visibility matches the intended distribution audience;
-people can install only if they can read the repository. No open-source licence for
-private product code is implied by making integration files publicly readable.
+people can install only if they can read the repository. The repository is under
+[LICENSE.md](LICENSE.md): proprietary, readable and installable, not open source.
 
 This is an independently hosted marketplace, not an Anthropic directory submission.
 The directory validator also reports missing licensing metadata, listing icons and
