@@ -15,8 +15,8 @@ Stdlib only. From inside any repo or worktree:
     python3 <skill dir>/ai_review.py --skip 'docs/**' --model claude-opus-5-5 --effort high
 
 Exits 1 when a finding is medium or more severe (change the threshold with --fail-on), and 2 when no review could be
-produced, so "no output" is never mistaken for "nothing found". A CLI that has not answered within 900 seconds
-(change that with --timeout) is stopped and counts as no review.
+produced, so "no output" is never mistaken for "nothing found". A CLI that has not answered within CLAUDE_TIMEOUT
+seconds (change that with --timeout) is stopped and counts as no review.
 """
 
 from __future__ import annotations
@@ -75,7 +75,10 @@ def load_schema() -> dict:
 
 
 def git(repo: str, *args: str) -> str:
-    return subprocess.run(["git", "-C", repo, *args], check=True, capture_output=True, text=True).stdout
+    # core.quotePath=false: a path with non-ASCII characters is printed as it is, not as a quoted "\303\251" escape that
+    # FILE_HEADER cannot read.
+    cmd = ["git", "-C", repo, "-c", "core.quotePath=false", *args]
+    return subprocess.run(cmd, check=True, capture_output=True, text=True).stdout
 
 
 def default_base(repo: str) -> str:
@@ -145,14 +148,20 @@ def fence_for(*texts: str) -> str:
 
 def build_prompt(branch: str, subjects: list[str], diff: str, cut: list[str], skipped: list[str]) -> str:
     said = "\n".join(f"- {s}" for s in subjects) or "(no commits yet)"
-    # The branch name, the commit subjects and the diff are the author's text: all of it goes inside a fenced block.
-    fence = fence_for(branch, said, diff)
+    # The branch name, the commit subjects, the file names and the diff are the author's text: all of it goes inside a
+    # fenced block, and only what this script says about it is outside.
+    fence = fence_for(branch, said, diff, *cut, *skipped)
     prompt = f"""{fence}text
 Branch: {branch}
 
 What the commits say:
 {said}
-{fence}
+"""
+    if cut:
+        prompt += f"\nNot reviewed, cut for length: {', '.join(cut)}\n"
+    if skipped:
+        prompt += f"\nLeft out as generated: {', '.join(skipped)}\n"
+    prompt += f"""{fence}
 
 Diff:
 {fence}diff
@@ -160,9 +169,7 @@ Diff:
 {fence}
 """
     if cut:
-        prompt += f"\nNot reviewed, cut for length: {', '.join(cut)}. Say in the summary that these were not reviewed.\n"
-    if skipped:
-        prompt += f"\nLeft out as generated: {', '.join(skipped)}.\n"
+        prompt += "\nSay in the summary that the files listed as cut for length were not reviewed.\n"
     return prompt + "\nAnswer as JSON matching the review schema."
 
 

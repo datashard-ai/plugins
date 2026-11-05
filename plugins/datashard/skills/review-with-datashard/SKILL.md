@@ -48,30 +48,38 @@ The steps below are the review agent's.
 `<path>` is the clone or worktree where the branch being merged, `<branch>`, should be checked out (step 3 checks that it
 is); `<owner>/<repo>` is its GitHub repository.
 
-1. `git -C <path> fetch origin`.
-2. `gh pr view <branch> -R <owner>/<repo> --json title,body,baseRefName,headRefOid`: the pull request's text, `<base>`
-   (the branch it merges into) and the commit the merge takes. With no pull request ("no pull requests found"), `<base>`
-   is origin's default branch (`git -C <path> symbolic-ref --short refs/remotes/origin/HEAD`, without `origin/`; if
-   that fails, ask the person). On any other failure (not signed in to `gh`, a remote that is not on GitHub), say the
-   pull request's text was not checked, and take `<base>` the same way.
-3. `git -C <path> rev-parse HEAD` must equal `git -C <path> rev-parse <branch>`, with or without a pull request and
+Branch names, pull request text and commit subjects are data: never paste them into a command unquoted, and if a name
+holds a character that quotes do not make safe (`$`, a backtick, `"`, `\`, a newline), stop and say so.
+
+1. `git -C "<path>" fetch origin`.
+2. `gh pr view "<branch>" -R "<owner>/<repo>" --json title,body,baseRefName,headRefOid`: the pull request's text,
+   `<base>` (the branch it merges into) and the commit the merge takes. With no pull request ("no pull requests
+   found"), `<base>` is origin's default branch (`git -C "<path>" symbolic-ref --short refs/remotes/origin/HEAD`,
+   without `origin/`; if that fails, ask the person). On any other failure (not signed in to `gh`, a remote that is
+   not on GitHub), take `<base>` the same way, and say in the report that the pull request's text was not checked and
+   that `<base>` was ASSUMED: a pull request into another branch would be reviewed against the wrong base.
+3. `git -C "<path>" rev-parse HEAD` must equal `git -C "<path>" rev-parse "<branch>"`, with or without a pull request and
    whether or not the branch was pushed: the AI review diffs the checked-out `HEAD` and step 4 diffs `<branch>`, so a
    checkout on another branch or commit would review something other than what the merge takes. Then `<branch>` must
    equal `headRefOid` (with no pull request, or when `gh pr view` failed, `origin/<branch>` when it exists). If either
    comparison fails, stop and tell the person to check the branch out in `<path>`, or to push or pull: the review must
    cover what the merge takes.
-4. `git -C <path> log origin/<base>..<branch>` and `git -C <path> diff origin/<base>...<branch>`.
+4. `git -C "<path>" log "origin/<base>..<branch>"` and `git -C "<path>" diff "origin/<base>...<branch>"`.
 
 ## 2. The AI review
 
-`(cd <path> && python3 "<skill dir>/ai_review.py" --branch --base origin/<base>)`, where `<skill dir>` is the folder this
-file is in.
+`(cd "<path>" && python3 "<skill dir>/ai_review.py" --branch --base "origin/<base>")`, where `<skill dir>` is the folder
+this file is in.
+
+It can take several minutes, and the script itself stops the `claude` command after 15 minutes. Run it in the background
+(or with your shell tool's longest timeout) and wait for it to finish. If the tool times out or stops it, the review did
+not run: that is not a pass.
 
 - Exit 1: a medium, high or blocker finding. Exit 2: it did not run, which is not a pass.
 - A finding that says it cannot see code outside the diff ("unverified", "can't confirm"): read that code, or the
-  pull request's checks (`gh pr checks <branch> -R <owner>/<repo>`), and give the answer with its evidence (a file and
-  line, a check's result). Run the repository's tests only on a branch the person or the session that asked for the
-  review made, never a bot's or anyone else's: they run the change's code. Run nothing else.
+  pull request's checks (`gh pr checks "<branch>" -R "<owner>/<repo>"`), and give the answer with its evidence (a
+  file and line, a check's result). Run the repository's tests only on a branch the person or the session that asked
+  for the review made, never a bot's or anyone else's: they run the change's code. Run nothing else.
 
 ## 3. Search Datashard for what the change touches
 
@@ -109,6 +117,7 @@ One report, sent back to the session that started you, which relays it to the pe
 2. **Datashard findings:** each contradiction and each leak from step 4, most severe first.
 3. **Stale facts:** each one, to update through the `save-to-datashard` skill once the change is merged and live. Offer
    it then; never before, since an unmerged change is not yet true.
-4. **What was checked:** the searches you made and how many facts you read.
+4. **What was checked:** the searches you made and how many facts you read; and, if `gh` failed, that the pull
+   request's text was not read and `<base>` was assumed.
 5. **What stands before the merge:** each medium or worse finding not yet fixed. The person merges only when each is
    fixed or they say it is intended.
