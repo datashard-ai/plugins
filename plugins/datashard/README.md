@@ -81,6 +81,13 @@ trusted, the `AGENTS.md` instructions `$datashard-init` writes are what stop a s
 to a different install. Codex does not stop a tool when a hook only asks, so the
 check denies a save it cannot match.
 
+The check runs on Node.js 14.8 or later (`node` must be on the PATH Codex uses) and asks
+`codex mcp get datashard --json` for the server's address. It is a best-effort guard
+against a save to the wrong install by mistake, not a security boundary, and it has
+not been run inside Codex itself from this repository: confirm the hook is listed in
+`/hooks` after you trust it. If `node` or the address is missing, the save is blocked
+with the reason.
+
 The same address and the two project skills can be installed from a checkout:
 
 ```sh

@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${PLUGIN_ROOT}/scripts/codex-check-install.sh\"",
+            "command": "sh -c 'f=$1; d() { cat >/dev/null; printf \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"deny\\\",\\\"permissionDecisionReason\\\":\\\"The Datashard save check was blocked: %s\\\"}}\\n\" \"$1\"; exit 0; }; command -v node >/dev/null 2>&1 || d \"node is not on PATH. Install Node.js, then try again.\"; [ -f \"$f\" ] || d \"the plugin file scripts/codex-check-install.mjs is missing. Reinstall the Datashard plugin.\"; node \"$f\" || d \"the check itself failed to run.\";' sh \"${PLUGIN_ROOT}/scripts/codex-check-install.mjs\"",
             "timeout": 10,
             "statusMessage": "Checking this save belongs to the project's Datashard"
           }
