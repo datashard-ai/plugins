@@ -104,3 +104,7 @@ Run `claude plugin validate .` and validate each `plugins/*` directory when the
 Claude CLI is available. CI runs both on every pull request and push to `main`, and
 checks that each changed package's version went up. [MAINTAINING.md](MAINTAINING.md)
 describes the publication boundary, releasing, and migration from the older marketplace.
+
+## Licence
+
+[LICENSE.md](LICENSE.md): proprietary, readable and installable, not open source.
