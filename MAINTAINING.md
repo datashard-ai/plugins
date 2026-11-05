@@ -37,14 +37,18 @@ runs, so it must keep working with every release still deployed.
 Codex reads the same root `.claude-plugin/marketplace.json`. Where a package has a
 `.codex-plugin/plugin.json`, Codex uses it in place of `.claude-plugin/plugin.json`:
 keep both at the same version (the tests check). Without one, Codex loads the Claude
-package as it is, including its `.mcp.json` and `hooks/hooks.json`; the Datashard
-package's Codex manifest names an empty MCP file and empty inline hooks for that reason.
+package as it is, including its `.mcp.json` and `hooks/hooks.json`. The Datashard
+Codex manifest points at its own skills, `codex/mcp.json`, and `codex/hooks.json`.
+Codex does not fill in Claude's `${user_config.datashard_url}`. The address it uses
+is the `datashard` server in the person's Codex configuration, which replaces the
+placeholder in `codex/mcp.json`. Keep that placeholder on `example.invalid`: a
+company address does not belong in the package.
 
 The Datashard package's `templates/DATASHARD.md` and `skills/save-to-datashard/` are
 copies of Datashard's own agent templates, which its source keeps for agents set up
 by hand. Change both in the same piece of work; `codex/skills/datashard-init/assets/DATASHARD.md`
-must equal `templates/DATASHARD.md`, and `cursor/skills/save-to-datashard/` must equal
-`skills/save-to-datashard/` (the tests check).
+must equal `templates/DATASHARD.md`, and both `cursor/skills/save-to-datashard/` and
+`codex/skills/save-to-datashard/` must equal `skills/save-to-datashard/` (the tests check).
 
 The Datashard package's `skills/review-with-datashard/` is its one Python component:
 `ai_review.py`, standard library only, with its `prompt.md` and `schema.json`. It is Claude

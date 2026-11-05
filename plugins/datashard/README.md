@@ -1,7 +1,7 @@
 # Datashard integration
 
 Connect Claude Code, Codex or Cursor to your company's Datashard MCP endpoint. This package
-contains client setup, skills and Claude permission hooks; the hosted server is not
+contains client setup, skills and the save checks for each client; the hosted server is not
 included. Your company supplies an HTTPS address ending in `/mcp` and account access.
 
 ## Claude Code
@@ -58,26 +58,39 @@ only: Codex and Cursor installs do not get this skill.
 
 ## Codex
 
-From this repository's root:
+Codex reads this repository as a plugin marketplace. From the Codex CLI:
+
+```sh
+codex plugin marketplace add datashard-ai/plugins
+codex plugin add datashard@datashard
+codex mcp add datashard --url https://YOUR-INSTALL/mcp
+codex mcp login datashard
+```
+
+The plugin brings `$datashard-init`, `save-to-datashard`, an HTTP server named
+`datashard`, and a hook that checks `save` and `flag` against the project's
+`DATASHARD.md`. Codex has no install prompt for the company address. The server
+registered with `codex mcp add` is the one it uses: a server of that name in your
+Codex configuration replaces the placeholder shipped in the plugin
+(`https://example.invalid/mcp`). Keep an existing `datashard` server. Removing it
+leaves the placeholder.
+
+Restart Codex, check the connection with `/mcp`, and run `$datashard-init` at the
+project root. Open `/hooks` and trust the plugin's save check. Until that hook is
+trusted, the `AGENTS.md` instructions `$datashard-init` writes are what stop a save
+to a different install. Codex does not stop a tool when a hook only asks, so the
+check denies a save it cannot match.
+
+The same address and the two project skills can be installed from a checkout:
 
 ```sh
 bash plugins/datashard/scripts/install-codex.sh https://YOUR-INSTALL/mcp /path/to/project
 ```
 
-This registers a remote server named `datashard` in your personal Codex configuration
-and installs two project skills, `datashard-init` and `save-to-datashard`, in the
-project's `.agents/skills/`. The project path defaults to the current directory. If
-needed, sign in with `codex mcp login datashard`. Restart Codex, check the connection
-with `/mcp`, and run `$datashard-init` at the project root.
-
-You can also register the server without cloning this repository:
-
-```sh
-codex mcp add datashard --url https://YOUR-INSTALL/mcp
-codex mcp login datashard
-```
-
-For each additional project, or if the connection already exists:
+This registers the remote server when that name is free, and copies
+`datashard-init` and `save-to-datashard` into the project's `.agents/skills/`.
+The project path defaults to the current directory. For another project, or when
+the connection already exists:
 
 ```sh
 bash plugins/datashard/scripts/install-codex.sh --skills-only /path/to/project
@@ -86,24 +99,16 @@ bash plugins/datashard/scripts/install-codex.sh --skills-only /path/to/project
 `$datashard-init` checks the connection, reads `brief`, reuses or asks for the
 project's section, tags and bundle, then creates or updates `DATASHARD.md` and
 `AGENTS.md`, preserving existing instructions. It also handles `AGENTS.override.md`
-when present, so Codex does not skip the Datashard instructions. Codex discovers the
-project skills on its own; restart it if `$datashard-init` is not listed.
-
-Codex also reads this repository as a plugin marketplace
-(`codex plugin marketplace add datashard-ai/plugins`). Its `datashard@datashard` plugin
-brings only `$datashard-init`, for every project, with no MCP server and no hooks:
-the connection still comes from `codex mcp add` or the installer above, and the save
-skill from the installer's `--skills-only`.
+when present, so Codex does not skip the Datashard instructions. Restart Codex if
+`$datashard-init` is not listed.
 
 The installer refuses to replace an existing server, so it cannot silently switch you
 to another company's install. It accepts identical existing skills and refuses to
-overwrite differing ones: review those before moving them aside for an update. Codex
-uses project instructions for install matching and approval; the Claude hooks do not
-run in Codex.
+overwrite differing ones: review those before moving them aside for an update.
 
 To change Codex's address, inspect the connection with `codex mcp get datashard`,
-remove it with `codex mcp remove datashard`, rerun the installer with the new address,
-and restart Codex.
+remove it with `codex mcp remove datashard`, register the new address, and restart
+Codex.
 
 ## Cursor
 
@@ -143,8 +148,8 @@ DATASHARD.md and knowledge on the server are separate from the marketplace.
 
 Do not add a second manual MCP connection alongside the Claude plugin for the same
 install. Inspect duplicate endpoints with `/mcp` before removing a connection.
-Existing Codex remote connections can stay; this repository only changes the place
-from which the setup skills are installed.
+An existing Codex server named `datashard` is the address the Codex plugin uses.
+Leave it in place.
 
 ## Optional local memory
 

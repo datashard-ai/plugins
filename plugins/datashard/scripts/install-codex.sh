@@ -85,3 +85,4 @@ for index in 0 1; do
 done
 printf 'Datashard skills installed in %s\n' "$skills_root"
 echo 'Open Codex at the project root and run $datashard-init. Restart Codex if the skill is not listed.'
+echo 'A datashard server in Codex configuration is the address the Datashard plugin uses.'

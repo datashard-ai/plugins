@@ -59,7 +59,8 @@ stop: the project belongs to that install.
   the root, e.g. `.okf/`.
 - **Other agents:** ask whether Codex, Cursor or another agent also works here (an `AGENTS.md`, `.cursor/`,
   `.cursorrules` or `.codex/` is a hint). They don't load Claude Code plugins. Cursor installs this
-  repository's Cursor plugin and runs `/datashard-init`. Codex uses `$datashard-init`.
+  repository's Cursor plugin and runs `/datashard-init`. Codex installs this repository's Codex plugin and runs
+  `$datashard-init`.
 
 ## 3. Write DATASHARD.md
 

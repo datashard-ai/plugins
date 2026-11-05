@@ -1,1 +1,8 @@
-{ "mcpServers": {} }
+{
+  "mcpServers": {
+    "datashard": {
+      "type": "http",
+      "url": "https://example.invalid/mcp"
+    }
+  }
+}

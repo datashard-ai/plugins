@@ -1,8 +1,36 @@
 {
   "name": "datashard",
-  "version": "0.29.1",
-  "description": "Datashard's Codex skills: $datashard-init sets a project up. The MCP connection is added with `codex mcp add` or the package's install-codex.sh.",
+  "version": "0.30.0",
+  "description": "Datashard, the company's knowledge base of verified facts, in Codex: the install's MCP server, the save skill, and $datashard-init to set up a project.",
+  "author": {
+    "name": "Xibit Digital",
+    "url": "https://github.com/datashard-ai"
+  },
+  "homepage": "https://github.com/datashard-ai/plugins",
+  "repository": "https://github.com/datashard-ai/plugins",
+  "keywords": [
+    "knowledge base",
+    "mcp",
+    "datashard"
+  ],
   "skills": "./codex/skills/",
   "mcpServers": "./codex/mcp.json",
-  "hooks": { "hooks": {} }
+  "hooks": "./codex/hooks.json",
+  "interface": {
+    "displayName": "Datashard",
+    "shortDescription": "The company's verified knowledge in Codex: search it, save to it, and set a project up.",
+    "longDescription": "Datashard connects Codex to the company's knowledge base of verified facts. The plugin brings $datashard-init, the save skill, an HTTP MCP server named datashard, and a hook that refuses a save whose install does not match the project's DATASHARD.md. Codex uses the address registered with codex mcp add for that server name.",
+    "developerName": "Xibit Digital",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/datashard-ai/plugins",
+    "defaultPrompt": [
+      "Look up what the company has already decided about this before changing it.",
+      "Set up Datashard for this project.",
+      "Save this decision to Datashard after I approve the exact text."
+    ]
+  }
 }

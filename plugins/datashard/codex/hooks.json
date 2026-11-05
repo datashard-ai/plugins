@@ -1,0 +1,18 @@
+{
+  "description": "Before a Datashard save or flag, checks the project's DATASHARD.md names the same install",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__(plugin_datashard_)?datashard__(save|flag)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${PLUGIN_ROOT}/scripts/codex-check-install.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking this save belongs to the project's Datashard"
+          }
+        ]
+      }
+    ]
+  }
+}

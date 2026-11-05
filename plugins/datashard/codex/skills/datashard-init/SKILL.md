@@ -13,6 +13,7 @@ Claude Code hooks.
 
 1. Read existing `DATASHARD.md` and `AGENTS.md`, including any applicable `AGENTS.override.md`. Inspect
    `codex mcp get datashard --json`; use the configured HTTP transport URL, not a URL guessed from the folder name.
+   A host of `example.invalid` is the plugin's unset placeholder, so treat that server as missing.
    Never copy authentication headers or credentials into project files. Require an HTTPS URL ending in `/mcp`,
    with no credentials, query or fragment. Ignore one trailing slash when comparing install addresses.
 2. If the server is missing, ask for the install address unless the person already supplied it or `DATASHARD.md`
@@ -63,9 +64,10 @@ Code), never an API key. To switch, they run
 `claude-mem@thedotmack`), and run `$datashard-init` again in a new session (more:
 https://github.com/datashard-ai/mnem0nic). Run these only if they ask you to.
 
-Check that `.agents/skills/save-to-datashard/` contains both `SKILL.md` and `fact-format.md`. The Codex installer
-provides them. If missing, tell the person to rerun `scripts/install-codex.sh --skills-only <project-root>` from
-their Datashard plugin checkout; do not leave a reference to an absent skill.
+Check that `.agents/skills/save-to-datashard/` contains both `SKILL.md` and `fact-format.md`. The Codex plugin
+ships the same skill, and the installer copies it into the project. If the project copy is missing, follow the
+plugin skill `save-to-datashard`, and tell the person they can add the project copy with
+`scripts/install-codex.sh --skills-only <project-root>` from their Datashard plugin checkout.
 
 Create root `AGENTS.md` if missing. Otherwise append only missing instructions, preserving existing content and
 equivalent rules. Include these requirements and a standalone `@DATASHARD.md` line for Claude Code
@@ -75,6 +77,7 @@ equivalent rules. Include these requirements and a standalone `@DATASHARD.md` li
 Read DATASHARD.md before answering about the company, changing integrations or recorded decisions, or saving knowledge.
 Before saving or flagging a fact in Codex, use `codex mcp get datashard --json` to check that its URL matches
 DATASHARD.md's Install (ignoring a trailing slash). If they differ or either is missing, stop and explain the mismatch.
+The Datashard plugin hook checks the same match after it is trusted in `/hooks`.
 Follow .agents/skills/save-to-datashard/SKILL.md for saves, including approval of the exact text.
 ```
 
@@ -90,6 +93,7 @@ Do not delete existing Claude instructions or change personal settings during in
 
 Apply the requested initialization after resolving the choices above. Show the resulting diff. A rerun with the
 same choices must not duplicate instructions or alter unrelated settings. Report changed files and any remaining
-connection steps. Explain that Codex enforces the install check through these instructions. Claude's permission
+connection steps. The Datashard plugin's hook denies a save when its install does not match `DATASHARD.md`, once
+the person trusts that hook in `/hooks`. These instructions do the same check until then. Claude's permission
 hooks do not run as part of this setup. Cursor has its own plugin, which checks saves in the desktop app.
 Start a new Codex session to load the updated project instructions.

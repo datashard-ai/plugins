@@ -31,7 +31,20 @@ not download the executable; public binary downloads are not available yet.
 
 ## Codex
 
-Clone this distribution repository, then install the integration you need:
+Add this repository as a Codex marketplace, install the plugin, and register your
+company's address. Codex uses that registered server in place of the plugin's
+placeholder:
+
+```sh
+codex plugin marketplace add datashard-ai/plugins
+codex plugin add datashard@datashard
+codex mcp add datashard --url https://YOUR-INSTALL/mcp
+codex mcp login datashard
+```
+
+Open a new Codex session, trust the plugin's save check in `/hooks`, and run
+`$datashard-init`. From a checkout, the installer registers the same address and
+copies both skills into the project's `.agents/skills/`:
 
 ```sh
 git clone https://github.com/datashard-ai/plugins.git
@@ -40,7 +53,7 @@ bash plugins/datashard/scripts/install-codex.sh https://YOUR-INSTALL/mcp /path/t
 ```
 
 For an already registered Datashard connection, use `--skills-only` in place of the
-address. Open a new Codex session and run `$datashard-init`.
+address.
 
 For mnem0nic, with a prebuilt executable supplied by its maintainer:
 

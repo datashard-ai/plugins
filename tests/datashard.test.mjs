@@ -95,15 +95,34 @@ describe('the package for Codex', () => {
     assert.equal(codex.version, json(join(plugin, '.claude-plugin/plugin.json')).version);
   });
 
-  it("brings only Codex's skills, no MCP server and no hooks", () => {
+  it('brings Codex skills, its own HTTP server, and its own hooks', () => {
     assert.equal(codex.skills, './codex/skills/');
-    assert.deepEqual(json(join(plugin, codex.mcpServers)), { mcpServers: {} });
-    // An inline object, as Codex ignores an empty list and falls back to hooks/hooks.json.
-    assert.deepEqual(codex.hooks, { hooks: {} });
+    assert.equal(codex.mcpServers, './codex/mcp.json');
+    assert.equal(codex.hooks, './codex/hooks.json');
+    assert.equal(codex.interface.displayName, 'Datashard');
+    assert.equal(codex.interface.developerName, 'Xibit Digital');
+    // example.invalid is the unset placeholder. Codex replaces a same-named server from config.toml,
+    // and a company address does not belong in the package.
+    assert.deepEqual(json(join(plugin, codex.mcpServers)), {
+      mcpServers: { datashard: { type: 'http', url: 'https://example.invalid/mcp' } },
+    });
+    const hooks = json(join(plugin, codex.hooks));
+    assert.equal(hooks.hooks.PreToolUse[0].matcher, 'mcp__(plugin_datashard_)?datashard__(save|flag)');
+    assert.equal(hooks.hooks.PreToolUse[0].hooks[0].command, 'bash "${PLUGIN_ROOT}/scripts/codex-check-install.sh"');
+    assert.equal(hooks.hooks.PreToolUse[0].hooks[0].type, 'command');
+  });
+
+  it('ships the same save skill as Claude', () => {
+    for (const name of ['SKILL.md', 'fact-format.md']) {
+      assert.equal(
+        read(join(plugin, 'codex/skills/save-to-datashard', name)),
+        read(join(plugin, 'skills/save-to-datashard', name)),
+      );
+    }
   });
 
   const cli = spawnSync('codex', ['--version'], { encoding: 'utf8' });
-  it('installs in Codex with $datashard-init and without a datashard server', { skip: cli.status !== 0 && 'no codex CLI here' }, (t) => {
+  it('installs in Codex with both skills, and uses a configured address in place of the placeholder', { skip: cli.status !== 0 && 'no codex CLI here' }, (t) => {
     const home = mkdtempSync(join(tmpdir(), 'datashard-codex-home-'));
     t.after(() => rmSync(home, { recursive: true, force: true }));
     const codexIn = (...args) => {
@@ -113,10 +132,73 @@ describe('the package for Codex', () => {
     };
     codexIn('plugin', 'marketplace', 'add', root);
     codexIn('plugin', 'add', 'datashard@datashard');
-    lacks(codexIn('mcp', 'list'), 'datashard');
+    const listed = JSON.parse(codexIn('mcp', 'list', '--json'));
+    const server = listed.find((item) => item.name === 'datashard');
+    assert.equal(server.transport.url, 'https://example.invalid/mcp');
+    writeFileSync(join(home, 'config.toml'), `${readFileSync(join(home, 'config.toml'), 'utf8')}\n[mcp_servers.datashard]\nurl = "https://example.com/mcp"\n`);
+    const replaced = JSON.parse(codexIn('mcp', 'list', '--json'));
+    const names = replaced.filter((item) => item.name === 'datashard');
+    assert.equal(names.length, 1);
+    assert.equal(names[0].transport.url, 'https://example.com/mcp');
     const prompt = codexIn('debug', 'prompt-input', 'hello');
     contains(prompt, 'datashard:datashard-init');
+    contains(prompt, 'datashard:save-to-datashard');
     lacks(prompt, 'datashard:init');
+  });
+});
+
+describe('the Codex save check', () => {
+  const script = join(plugin, 'scripts/codex-check-install.sh');
+  const projects = [];
+  afterEach(() => projects.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
+  const run = (body, config) => {
+    const home = mkdtempSync(join(tmpdir(), 'datashard-codex-check-'));
+    projects.push(home);
+    if (config !== undefined) writeFileSync(join(home, 'config.toml'), config);
+    const result = spawnSync('/bin/bash', [script], {
+      input: JSON.stringify(body),
+      encoding: 'utf8',
+      env: { ...process.env, CODEX_HOME: home, HOME: home },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    if (!result.stdout.trim()) return { permissionDecision: 'allow' };
+    return JSON.parse(result.stdout).hookSpecificOutput;
+  };
+  const project = (install) => {
+    const dir = mkdtempSync(join(tmpdir(), 'datashard-codex-project-'));
+    projects.push(dir);
+    if (install !== undefined) writeFileSync(join(dir, 'DATASHARD.md'), `## This project\n- Install: ${install}\n`);
+    return dir;
+  };
+  const config = (url) => `[mcp_servers.datashard]\nurl = "${url}"\n`;
+
+  it('allows a search, and a save on another server', () => {
+    assert.equal(run({ tool_name: 'search', cwd: '/tmp' }, config('https://example.com/mcp')).permissionDecision, 'allow');
+    assert.equal(run({ tool_name: 'mcp__linear__save', cwd: '/tmp' }, config('https://example.com/mcp')).permissionDecision, 'allow');
+  });
+
+  it('denies a save to a different install, using the configured address rather than a field inside the call', () => {
+    const decision = run({
+      tool_name: 'mcp__datashard__save',
+      cwd: project('https://other.example.com/mcp'),
+      tool_input: { url: 'https://evil.example/mcp' },
+    }, config('https://example.com/mcp'));
+    assert.equal(decision.permissionDecision, 'deny');
+    contains(decision.permissionDecisionReason, 'https://example.com');
+    lacks(decision.permissionDecisionReason, 'evil.example');
+    lacks(decision.permissionDecisionReason, 'Claude Code');
+    lacks(decision.permissionDecisionReason, '/datashard:init');
+    contains(decision.permissionDecisionReason, '$datashard-init');
+  });
+
+  it('denies a save it cannot match, and allows a matching install', () => {
+    const missing = run({ tool_name: 'mcp__plugin_datashard_datashard__flag', cwd: project() }, config('https://example.com/mcp'));
+    assert.equal(missing.permissionDecision, 'deny');
+    lacks(missing.permissionDecisionReason, 'Claude Code');
+    const placeholder = run({ tool_name: 'mcp__datashard__save', cwd: project('https://example.com/mcp') }, config('https://example.invalid/mcp'));
+    assert.equal(placeholder.permissionDecision, 'deny');
+    const same = run({ tool_name: 'mcp__datashard__save', cwd: project('https://example.com/mcp') }, config('https://example.com/mcp'));
+    assert.equal(same.permissionDecision, 'allow');
   });
 });
 
