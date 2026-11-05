@@ -6,16 +6,6 @@ included. Your company supplies an HTTPS address ending in `/mcp` and account ac
 
 ## Claude Code
 
-Installing needs read access to this repository: you have it if you can read this
-page on GitHub. While the repository is private, let git reach GitHub without asking
-for a password, as Claude Code clones plugins with prompts turned off:
-
-- over HTTPS: `gh auth login`, then `gh auth setup-git`;
-- or over SSH: a key loaded in `ssh-agent`.
-
-Without a GitHub SSH key, also set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` in your shell,
-or installs and updates from inside Claude Code fail.
-
 Inside Claude Code:
 
 ```text
@@ -45,8 +35,22 @@ or every tool shows twice.
 
 Claude Code gets a new version when the package's version goes up. Run
 `claude plugin update datashard@datashard`, or turn on auto-update for the `datashard`
-marketplace under Marketplaces in `/plugin`. While the repository is private,
-auto-update needs the stored GitHub sign-in above.
+marketplace under Marketplaces in `/plugin`.
+
+### Reviewing a change
+
+`/datashard:review-with-datashard` checks a branch or pull request before you merge it.
+Claude Code starts an independent review agent in the background, so your session goes
+on working. The agent runs an AI review of the diff, then checks the change against what
+Datashard records: decisions and contracts it contradicts, private detail it would
+publish, facts it makes stale. It changes nothing and approves nothing; you decide.
+
+It needs a recent Claude Code with the `claude` command on your PATH, Python 3.10 or
+later, `git` and the GitHub CLI (`gh`), signed in.
+The Datashard part uses the plugin's `datashard` server, signed in through `/mcp`; if
+that is missing, the report says the Datashard part did not run, which is not a pass.
+The AI review sends the diff to a model through your own `claude` command. Claude Code
+only: Codex and Cursor installs do not get this skill.
 
 ## Codex
 

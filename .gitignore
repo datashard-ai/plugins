@@ -20,3 +20,7 @@ node_modules/
 *.rs
 Cargo.toml
 Cargo.lock
+
+# Python bytecode
+__pycache__/
+*.pyc

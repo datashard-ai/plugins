@@ -1,0 +1,80 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Two or three sentences: what the change does, and the one thing most worth the person's attention."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "description": "Line in the new file, or 0 when it cannot be placed precisely."
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "blocker",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "correctness",
+              "data-loss",
+              "security",
+              "concurrency",
+              "error-handling",
+              "contract-break",
+              "tests-docs",
+              "other"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "fix": {
+            "type": "string",
+            "description": "One sentence: the smallest change that would put it right."
+          }
+        },
+        "required": [
+          "file",
+          "line",
+          "severity",
+          "confidence",
+          "category",
+          "title",
+          "detail",
+          "fix"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "summary",
+    "findings"
+  ],
+  "additionalProperties": false
+}

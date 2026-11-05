@@ -31,6 +31,8 @@ jobs:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: bash tests/version-check.sh
       - run: node --test tests/*.test.mjs
+      # The review skill's script. PYTHONDONTWRITEBYTECODE keeps a __pycache__ out of the tree.
+      - run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'
       # Claude Code 2.1.304, pinned with integrity by .github/claude-code's lock file. Installed without its install
       # script, which only copies the native binary into place; the package's cli-wrapper.cjs runs that binary instead.
       # That file is the package's own, not a documented entry point: check it is still there when changing the version.
