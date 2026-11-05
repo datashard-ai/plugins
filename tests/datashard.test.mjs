@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -108,8 +108,11 @@ describe('the package for Codex', () => {
     });
     const hooks = json(join(plugin, codex.hooks));
     assert.equal(hooks.hooks.PreToolUse[0].matcher, 'mcp__(plugin_datashard_)?datashard__(save|flag)');
-    assert.equal(hooks.hooks.PreToolUse[0].hooks[0].command, 'bash "${PLUGIN_ROOT}/scripts/codex-check-install.sh"');
-    assert.equal(hooks.hooks.PreToolUse[0].hooks[0].type, 'command');
+    const command = hooks.hooks.PreToolUse[0].hooks[0];
+    assert.equal(command.type, 'command');
+    contains(command.command, '"${PLUGIN_ROOT}/scripts/codex-check-install.mjs"');
+    contains(command.command, 'node "$f"');
+    assert.ok(existsSync(join(plugin, 'scripts/codex-check-install.mjs')));
   });
 
   it('ships the same save skill as Claude', () => {
@@ -148,29 +151,43 @@ describe('the package for Codex', () => {
 });
 
 describe('the Codex save check', () => {
-  const script = join(plugin, 'scripts/codex-check-install.sh');
+  const script = join(plugin, 'scripts/codex-check-install.mjs');
   const projects = [];
   afterEach(() => projects.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
-  const run = (body, config) => {
-    const home = mkdtempSync(join(tmpdir(), 'datashard-codex-check-'));
-    projects.push(home);
+  const temp = (name) => {
+    const dir = mkdtempSync(join(tmpdir(), name));
+    projects.push(dir);
+    return dir;
+  };
+  // A `codex` on the hook's PATH that answers `codex mcp get datashard --json` with this address, or fails.
+  const fakeCodex = (address) => {
+    const bin = temp('datashard-codex-bin-');
+    const answer = address === undefined ? 'exit 1' : `printf '%s' '${JSON.stringify({ name: 'datashard', transport: { url: address } })}'`;
+    writeFileSync(join(bin, 'codex'), `#!/bin/sh\n${answer}\n`, { mode: 0o755 });
+    return bin;
+  };
+  // The hook with this on its stdin. Without `codexBin` there is no `codex` on its PATH, so it reads `config` (a
+  // config.toml) instead.
+  const hook = (stdin, { config, codexBin } = {}) => {
+    const home = temp('datashard-codex-check-');
     if (config !== undefined) writeFileSync(join(home, 'config.toml'), config);
-    const result = spawnSync('/bin/bash', [script], {
-      input: JSON.stringify(body),
+    const result = spawnSync(process.execPath, [script], {
+      input: stdin,
       encoding: 'utf8',
-      env: { ...process.env, CODEX_HOME: home, HOME: home },
+      env: { PATH: [codexBin, '/usr/bin', '/bin'].filter(Boolean).join(':'), CODEX_HOME: home, HOME: home },
     });
     assert.equal(result.status, 0, result.stderr);
     if (!result.stdout.trim()) return { permissionDecision: 'allow' };
     return JSON.parse(result.stdout).hookSpecificOutput;
   };
+  const run = (body, config) => hook(JSON.stringify(body), { config });
   const project = (install) => {
-    const dir = mkdtempSync(join(tmpdir(), 'datashard-codex-project-'));
-    projects.push(dir);
+    const dir = temp('datashard-codex-project-');
     if (install !== undefined) writeFileSync(join(dir, 'DATASHARD.md'), `## This project\n- Install: ${install}\n`);
     return dir;
   };
   const config = (url) => `[mcp_servers.datashard]\nurl = "${url}"\n`;
+  const save = 'mcp__datashard__save';
 
   it('allows a search, and a save on another server', () => {
     assert.equal(run({ tool_name: 'search', cwd: '/tmp' }, config('https://example.com/mcp')).permissionDecision, 'allow');
@@ -199,6 +216,102 @@ describe('the Codex save check', () => {
     assert.equal(placeholder.permissionDecision, 'deny');
     const same = run({ tool_name: 'mcp__datashard__save', cwd: project('https://example.com/mcp') }, config('https://example.com/mcp'));
     assert.equal(same.permissionDecision, 'allow');
+  });
+
+  it('reads only the top-level tool_name and cwd, wherever tool_input sits in the object', () => {
+    const wrong = project('https://other.example.com/mcp');
+    const right = project('https://example.com/mcp');
+    const nested = { tool_name: 'search', cwd: right };
+    for (const body of [
+      { tool_name: save, cwd: wrong, tool_input: nested },
+      { tool_input: nested, tool_name: save, cwd: wrong },
+    ]) assert.equal(run(body, config('https://example.com/mcp')).permissionDecision, 'deny');
+    // the same keys quoted inside a string are only text
+    const quoted = `{"tool_input":{"title":"\\"tool_name\\":\\"search\\""},"tool_name":"${save}","cwd":${JSON.stringify(wrong)}}`;
+    assert.equal(hook(quoted, { config: config('https://example.com/mcp') }).permissionDecision, 'deny');
+  });
+
+  it('denies, saying why, input it cannot read', () => {
+    for (const stdin of ['', '  \n', '{', 'null', '[]', '"text"', '7']) {
+      const decision = hook(stdin, { config: config('https://example.com/mcp') });
+      assert.equal(decision.permissionDecision, 'deny', JSON.stringify(stdin));
+      contains(decision.permissionDecisionReason, "could not read the hook's input");
+    }
+  });
+
+  it('denies a datashard save without a tool name, or without an absolute folder that exists', () => {
+    const cwd = project('https://example.com/mcp');
+    for (const [body, why] of [
+      [{ cwd }, 'no tool name'],
+      [{ tool_name: 7, cwd }, 'no tool name'],
+      [{ tool_name: save }, 'the folder Codex is working in'],
+      [{ tool_name: save, cwd: 'relative/dir' }, 'the folder Codex is working in'],
+      [{ tool_name: save, cwd: join(cwd, 'gone') }, 'the folder Codex is working in'],
+    ]) {
+      const decision = run(body, config('https://example.com/mcp'));
+      assert.equal(decision.permissionDecision, 'deny', JSON.stringify(body));
+      contains(decision.permissionDecisionReason, why, JSON.stringify(body));
+    }
+    assert.equal(run({ tool_name: 'search' }, config('https://example.com/mcp')).permissionDecision, 'allow');
+  });
+
+  it("asks Codex for the datashard server's address, so a profile or override counts", () => {
+    const stale = config('https://stale.example.com/mcp');
+    const codexBin = fakeCodex('https://example.com/mcp');
+    const body = (cwd) => JSON.stringify({ tool_name: save, cwd });
+    assert.equal(hook(body(project('https://example.com/mcp')), { config: stale, codexBin }).permissionDecision, 'allow');
+    assert.equal(hook(body(project('https://stale.example.com/mcp')), { config: stale, codexBin }).permissionDecision, 'deny');
+  });
+
+  it('denies, saying why, when the address cannot be read', () => {
+    const body = JSON.stringify({ tool_name: save, cwd: project('https://example.com/mcp') });
+    for (const options of [{ codexBin: fakeCodex(undefined), config: config('https://example.com/mcp') }, {}, { config: '[mcp_servers.other]\nurl = "https://example.com/mcp"\n' }]) {
+      const decision = hook(body, options);
+      assert.equal(decision.permissionDecision, 'deny');
+      contains(decision.permissionDecisionReason, "could not read the datashard server's address");
+      contains(decision.permissionDecisionReason, 'codex mcp add datashard');
+    }
+  });
+
+  it('reads config.toml itself when codex is not installed, in the forms TOML allows', () => {
+    const body = JSON.stringify({ tool_name: save, cwd: project('https://example.com/mcp') });
+    for (const text of [
+      '[mcp_servers.datashard] # the company install\nurl = "https://example.com/mcp"\n',
+      "[mcp_servers.datashard]\n  url = 'https://example.com/mcp'  # literal string\n",
+      '[ mcp_servers . datashard ]\nurl="https://example.com/mcp"\n',
+      '[mcp_servers.other]\nurl = "https://other.example.com/mcp"\n[mcp_servers.datashard]\nurl = "https://example.com/mcp"\n',
+    ]) assert.equal(hook(body, { config: text }).permissionDecision, 'allow', text);
+  });
+
+  it('quotes the folder back as it is, even when its path contains /config', () => {
+    const cwd = join(temp('datashard-codex-folder-'), 'config', 'app');
+    mkdirSync(cwd, { recursive: true });
+    const decision = run({ tool_name: save, cwd }, config('https://example.com/mcp'));
+    assert.equal(decision.permissionDecision, 'deny');
+    contains(decision.permissionDecisionReason, cwd);
+  });
+
+  describe("the hook's command", () => {
+    const command = json(join(plugin, 'codex/hooks.json')).hooks.PreToolUse[0].hooks[0].command;
+    const sh = (env, input = '{"tool_name":"search"}') => spawnSync('/bin/sh', ['-c', command], { input, encoding: 'utf8', env });
+    it('runs the check with node, which clears a tool that is not a datashard save', () => {
+      const result = sh({ PLUGIN_ROOT: plugin, PATH: `${dirname(process.execPath)}:/usr/bin:/bin` });
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout.trim(), '');
+    });
+    it('blocks the save, saying what to do, when node is not installed', () => {
+      // a PATH with the shell tools the command uses, and no node
+      const bare = temp('datashard-codex-nopath-');
+      for (const tool of ['sh', 'cat']) symlinkSync(`/bin/${tool}`, join(bare, tool));
+      const result = sh({ PLUGIN_ROOT: plugin, PATH: bare });
+      assert.equal(result.status, 2, result.stderr);
+      contains(result.stderr, 'node is not on PATH');
+    });
+    it('blocks the save, saying what to do, when the check script is missing', () => {
+      const result = sh({ PLUGIN_ROOT: temp('datashard-codex-noscript-'), PATH: `${dirname(process.execPath)}:/usr/bin:/bin` });
+      assert.equal(result.status, 2);
+      contains(result.stderr, 'is missing');
+    });
   });
 });
 
