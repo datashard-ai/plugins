@@ -376,17 +376,65 @@ describe('the Cursor save check', () => {
   const script = join(plugin, 'scripts/cursor-check-install.sh');
   const projects = [];
   afterEach(() => projects.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
-  const run = (body) => {
-    const result = spawnSync('/bin/bash', [script], { input: JSON.stringify(body), encoding: 'utf8' });
+  const withNode = `${dirname(process.execPath)}:/usr/bin:/bin`;
+  const hook = (stdin, PATH = withNode) => {
+    const result = spawnSync('/bin/bash', [script], { input: stdin, encoding: 'utf8', env: { PATH } });
     assert.equal(result.status, 0, result.stderr);
     return JSON.parse(result.stdout);
   };
+  const run = (body) => hook(JSON.stringify(body));
   const project = (install) => {
     const dir = mkdtempSync(join(tmpdir(), 'datashard-cursor-'));
     projects.push(dir);
     if (install !== undefined) writeFileSync(join(dir, 'DATASHARD.md'), `## This project\n- Install: ${install}\n`);
     return dir;
   };
+
+  it('reads only the top-level fields, wherever tool_input sits in the object', () => {
+    const wrong = project('https://other.example.com/mcp');
+    const right = project('https://example.com/mcp');
+    const nested = { tool_name: 'search', mcp_server_name: 'linear', url: 'https://other.example.com/mcp', workspace_roots: [right] };
+    const top = { tool_name: 'save', mcp_server_name: 'datashard', url: 'https://example.com/mcp', workspace_roots: [wrong] };
+    assert.equal(run({ ...top, tool_input: nested }).permission, 'deny');
+    assert.equal(run({ tool_input: nested, ...top }).permission, 'deny');
+    const quoted = `{"tool_input":"\\"tool_name\\":\\"search\\"","tool_name":"save","mcp_server_name":"datashard","url":"https://example.com/mcp","workspace_roots":[${JSON.stringify(wrong)}]}`;
+    assert.equal(hook(quoted).permission, 'deny');
+  });
+
+  it('asks, saying why, when a call naming datashard cannot be read or has no project folder', () => {
+    for (const stdin of ['datashard', '{ "tool_name": "save", datashard', '["datashard"]', '"datashard"']) {
+      const decision = hook(stdin);
+      assert.equal(decision.permission, 'ask', stdin);
+      contains(decision.user_message, 'could not check');
+    }
+    assert.equal(run({ tool_name: 'save', mcp_server_name: 'datashard', url: 'https://example.com/mcp' }).permission, 'ask');
+  });
+
+  it('allows a call that does not name datashard, even with no node and with input it cannot read', () => {
+    const bare = mkdtempSync(join(tmpdir(), 'datashard-cursor-nopath-'));
+    projects.push(bare);
+    for (const tool of ['sh', 'cat']) symlinkSync(`/bin/${tool}`, join(bare, tool));
+    assert.equal(hook('{ not json', bare).permission, 'allow');
+    assert.equal(hook(JSON.stringify({ tool_name: 'save', mcp_server_name: 'linear' }), bare).permission, 'allow');
+  });
+
+  it('asks, saying what to do, when a call naming datashard comes and node is not installed', () => {
+    const bare = mkdtempSync(join(tmpdir(), 'datashard-cursor-nopath-'));
+    projects.push(bare);
+    for (const tool of ['sh', 'cat']) symlinkSync(`/bin/${tool}`, join(bare, tool));
+    const decision = hook(JSON.stringify({ tool_name: 'save', mcp_server_name: 'datashard', workspace_roots: ['/tmp'] }), bare);
+    assert.equal(decision.permission, 'ask');
+    contains(decision.user_message, 'node is not on PATH');
+  });
+
+  it('quotes the folder back as it is, even when its path contains /config', () => {
+    const folder = join(mkdtempSync(join(tmpdir(), 'datashard-cursor-folder-')), 'config', 'app');
+    projects.push(dirname(dirname(folder)));
+    mkdirSync(folder, { recursive: true });
+    const decision = run({ tool_name: 'save', mcp_server_name: 'datashard', url: 'https://example.com/mcp', workspace_roots: [folder] });
+    assert.equal(decision.permission, 'ask');
+    contains(decision.user_message, folder);
+  });
 
   it('allows a search, and a save on another server', () => {
     assert.equal(run({ tool_name: 'search', mcp_server_name: 'datashard', url: 'https://example.com/mcp', workspace_roots: ['/tmp'] }).permission, 'allow');
