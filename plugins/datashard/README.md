@@ -46,7 +46,11 @@ Datashard records: decisions and contracts it contradicts, private detail it wou
 publish, facts it makes stale. It changes nothing and approves nothing; you decide.
 
 It needs a recent Claude Code with the `claude` command on your PATH, Python 3.10 or
-later, `git` and the GitHub CLI (`gh`), signed in.
+later and `git`. The GitHub CLI (`gh`), signed in, is needed only to read the pull
+request and its checks: without it the review still runs, with the base branch assumed
+(origin's default) and the pull request's text unchecked, and the report says so.
+The AI review stops the `claude` command after 15 minutes and then counts as not run;
+the script's `--timeout <seconds>` changes that.
 The Datashard part uses the plugin's `datashard` server, signed in through `/mcp`; if
 that is missing, the report says the Datashard part did not run, which is not a pass.
 The AI review sends the diff to a model through your own `claude` command. Claude Code
