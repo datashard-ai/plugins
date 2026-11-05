@@ -9,7 +9,9 @@ paths, build logs, credentials or personal databases.
 The GitHub-generated source archives for this repository contain integration files;
 they must never include product implementation. The package tests enforce a narrow
 file allowlist. Adding a new distribution component requires reviewing that allowlist.
-Public skill instructions and shell glue are readable by installers.
+Public skill instructions and shell glue are readable by installers. This repository
+is public, so everything in it is: no client names, internal paths or private decision
+numbers.
 
 The Datashard package starts at 0.26.0 in this new marketplace. Both its plugin name
 and marketplace name remain datashard to preserve client tool naming. The original
@@ -43,6 +45,14 @@ copies of Datashard's own agent templates, which its source keeps for agents set
 by hand. Change both in the same piece of work; `codex/skills/datashard-init/assets/DATASHARD.md`
 must equal `templates/DATASHARD.md`, and `cursor/skills/save-to-datashard/` must equal
 `skills/save-to-datashard/` (the tests check).
+
+The Datashard package's `skills/review-with-datashard/` is its one Python component:
+`ai_review.py`, standard library only, with its `prompt.md` and `schema.json`. It is Claude
+Code only (the skill starts an agent and the script calls the `claude` command), so neither
+the Codex nor the Cursor package carries it. `tests/test_ai_review.py` tests it; CI runs it
+with `PYTHONDONTWRITEBYTECODE=1`, since a `__pycache__` under `plugins/` fails the allowlist
+test. The skill finds its script through the "Base directory for this skill" that Claude
+Code prints when it loads, so keep it free of paths from any one workspace.
 
 Cursor reads a root `.cursor-plugin/marketplace.json` before the Claude marketplace.
 Each package's `.cursor-plugin/plugin.json` is what Cursor loads: keep it at the same

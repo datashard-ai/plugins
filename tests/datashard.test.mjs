@@ -276,6 +276,57 @@ describe('/datashard:init', () => {
   });
 });
 
+describe('/datashard:review-with-datashard', () => {
+  const skillDir = join(plugin, 'skills/review-with-datashard');
+  const skill = read(join(skillDir, 'SKILL.md'));
+
+  it('is named for its folder, so Claude Code offers it as /datashard:review-with-datashard', () => {
+    const frontmatter = skill.match(/^---\n([\s\S]*?)\n---\n/)?.[1];
+    assert.ok(frontmatter, 'SKILL.md starts with frontmatter');
+    assert.equal(frontmatter.match(/^name: (.+)$/m)?.[1], 'review-with-datashard');
+  });
+
+  it('names no decision number, no private folder and no section of anyone', () => {
+    assert.doesNotMatch(skill, /ADR \d/);
+    for (const part of ['.claude/skills/review-with-datashard', '<workspace>', '`commercial`']) {
+      lacks(skill, part);
+    }
+  });
+
+  it('does not run the script from a sibling folder', () => {
+    for (const file of ['SKILL.md', 'ai_review.py']) lacks(read(join(skillDir, file)), 'python3 ../', `${file} contains python3 ../`);
+  });
+
+  it("compares the checkout's HEAD with the pull request's head, since the script reviews HEAD", () => {
+    contains(skill, '`git -C <path> rev-parse HEAD`');
+    contains(skill, 'must both equal `headRefOid`');
+    contains(skill, 'check the branch out in `<path>`');
+  });
+
+  it('names only files the skill folder holds', () => {
+    const named = new Set(skill.match(/[\w.-]+\.(?:py|md|json)\b/g));
+    assert.ok(named.has('ai_review.py'));
+    for (const file of named) assert.ok(existsSync(join(skillDir, file)), file);
+  });
+
+  it('runs the script from the skill folder, which Claude Code names when the skill loads', () => {
+    contains(skill, '<skill dir>/ai_review.py');
+    contains(skill, '"Base directory for this skill"');
+  });
+
+  it("runs the script's Python tests in CI", () => {
+    contains(read(join(root, '.github/workflows/ci.yml')), "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'");
+  });
+
+  it('is only in the Claude Code package, which has the Agent tool and the claude command it needs', () => {
+    for (const manifest of ['.codex-plugin/plugin.json', '.cursor-plugin/plugin.json']) {
+      lacks(read(join(plugin, manifest)), 'review-with-datashard');
+    }
+    assert.equal(existsSync(join(plugin, 'codex/skills/review-with-datashard')), false);
+    assert.equal(existsSync(join(plugin, 'cursor/skills/review-with-datashard')), false);
+  });
+});
+
 describe('the memory sections of DATASHARD.md', () => {
   const section = (heading) => template.match(new RegExp(`^## ${heading}\\n[\\s\\S]*?(?=^## |(?![\\s\\S]))`, 'm'))?.[0];
   const codexInit = read(join(plugin, 'codex/skills/datashard-init/SKILL.md'));
