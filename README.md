@@ -21,9 +21,17 @@ Add this marketplace from inside Claude Code:
 /plugin install datashard@datashard
 ```
 
-Set your company's Datashard address when prompted, then restart Claude Code, sign
-in with `/mcp`, and run `/datashard:init` in your project. See the
-[Datashard setup guide](plugins/datashard/README.md) for CLI installation and migration.
+Set your company's Datashard address when prompted. Then:
+
+1. Restart Claude Code.
+2. Sign in to the Datashard connection with `/mcp`.
+3. Run `/datashard:init` in each project you want to use Datashard in.
+
+`/datashard:init` is the step that sets a project up: it creates the project's
+`DATASHARD.md` and its instructions, with the section and tags you choose, and the
+save check compares every save with the install that file names. Run it once per
+project. See the [Datashard setup guide](plugins/datashard/README.md) for CLI
+installation, changing the address and migration.
 
 For the local memory preview, install `mnem0nic@datashard` from the same marketplace
 and follow its [setup guide](plugins/mnem0nic/README.md). Installing the plugin does
