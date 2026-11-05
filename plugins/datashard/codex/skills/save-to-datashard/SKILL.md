@@ -10,7 +10,8 @@ Facts are kept small: one topic each, within 4,000 characters, a long text split
 
 ## 1. Check what is there
 
-- `search` Datashard for the topic: 2–6 distinctive words, and the project's tags (see `DATASHARD.md`).
+- `search` Datashard for the topic: 2–6 distinctive words, the project's tags, and its `project` filter when the project
+  is one client's (see `DATASHARD.md`). Before deciding nothing covers the topic, search again without the filter.
 - Keep the terms you searched with; the score asks for them.
 - With a bundle, also search its files: they may hold changes not imported yet.
 - Read the closest facts. If one already covers the topic, update it rather than add a new one. A short addition
@@ -54,7 +55,7 @@ Score the evidence behind each fact about to be saved, out of 100, and show the 
 
 Write the change so it claims only what the source says. Score only what you read in this run, and give a one-line reason for each criterion below full marks. One score per fact shown. For a retirement, score the evidence that the fact no longer holds.
 
-A total of 90 or more with every floor met tells the person the text can be skimmed; a lower total tells the person to read it closely. Whatever the total, a decision, a price or rate, a contract or SLA, access and roles, a credential, security posture or a role change, and any change that rests on a mail or on text anyone with access can write, must be read closely before the person's yes. Show the person the terms the search used, next to the consistency points: full marks for consistency rest on that search. If the person's edit or yours changes the text after the score was shown, score it again. The score never replaces the person's yes.
+A total of 90 or more with every floor met tells the person the text can be skimmed; a lower total tells the person to read it closely. Whatever the total, a decision, a price or rate, a contract or SLA, access and roles, a credential, security posture or a role change, and any change that rests on a mail or on text anyone with access can write, must be read closely before the person's yes. Show the person the score as four short lines, not a table. First `Evidence 93/100 → read closely · floor missed: consistency`, or `Evidence 94/100 → can be skimmed · all floors met`, or `Evidence 95/100 → read closely · a price`: say `can be skimmed` only at 90 or more with every floor met, and otherwise `read closely`; for any change listed above, a kind, a mail or text anyone with access can write, say `read closely` and name it, whatever the total. Join several floors or kinds with `, `. Second the six points in a row: `authority 30 · corroboration 20 · direct 20 · consistency 8 · freshness 10 · scope 5`. Third `Search:` and the terms the search used, or `none`, next to the consistency points: full marks for consistency rest on that search. Fourth `Short of full:` and each reason for a criterion below full marks, cut to a few words, or `none` when all six are full. Score a new fact as you score an update: it has no earlier text to check it against, so its evidence is all there is. If the person's edit or yours changes the text after the score was shown, score it again. The score never replaces the person's yes.
 <!-- evidence-score:end -->
 
 ## 4. Save
