@@ -45,16 +45,18 @@ The steps below are the review agent's.
 
 ## 1. Find the change
 
-`<path>` is the clone or worktree that has the branch being merged, `<branch>`, checked out; `<owner>/<repo>` is its
-GitHub repository.
+`<path>` is the clone or worktree where the branch being merged, `<branch>`, should be checked out (step 3 checks that it
+is); `<owner>/<repo>` is its GitHub repository.
 
 1. `git -C <path> fetch origin`.
 2. `gh pr view <branch> -R <owner>/<repo> --json title,body,baseRefName,headRefOid`: the pull request's text, `<base>`
    (the branch it merges into) and the commit the merge takes. With no pull request ("no pull requests found"), `<base>`
    is origin's default branch (`git -C <path> symbolic-ref --short refs/remotes/origin/HEAD`, without `origin/`; if
    that fails, ask the person). Any other failure means the pull request's text was not checked: say so.
-3. `git -C <path> rev-parse <branch>` must equal `headRefOid` (with no pull request, `origin/<branch>` when it exists).
-   If not, stop and tell the person to push or pull first: the review must cover what the merge takes.
+3. `git -C <path> rev-parse <branch>` and `git -C <path> rev-parse HEAD` must both equal `headRefOid` (with no pull
+   request, `origin/<branch>` when it exists). The AI review diffs the checked-out `HEAD`, so a checkout on another
+   branch or commit would review something the merge does not take. If either differs, stop and tell the person to
+   push or pull, or to check the branch out in `<path>`: the review must cover what the merge takes.
 4. `git -C <path> log origin/<base>..<branch>` and `git -C <path> diff origin/<base>...<branch>`.
 
 ## 2. The AI review

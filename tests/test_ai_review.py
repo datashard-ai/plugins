@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -204,6 +205,125 @@ class Verdict(RepoCase):
     def test_exits_2_when_no_review_could_be_produced(self):
         code, _ = self.main(None)
         self.assertEqual(code, 2)
+
+
+REAL_RUN = subprocess.run
+
+
+def claude_answers(returncode: int = 0, stdout: str = "", stderr: str = ""):
+    """A stand-in for subprocess.run that answers only the claude CLI; git and anything else run for real."""
+
+    def fake(cmd, *args, **kwargs):
+        if cmd[0] != "claude":
+            return REAL_RUN(cmd, *args, **kwargs)
+        return subprocess.CompletedProcess(cmd, returncode, stdout, stderr)
+
+    return fake
+
+
+def envelope(**fields) -> str:
+    """What `claude --print --output-format json` prints: one result object."""
+    return json.dumps({"type": "result", "is_error": False, "result": "", **fields})
+
+
+class TheClaudeCommand(unittest.TestCase):
+    """review() and what it makes of the CLI's answer, with only subprocess.run patched."""
+
+    def review(self, **cli):
+        err = io.StringIO()
+        with mock.patch.object(ai_review.subprocess, "run", side_effect=claude_answers(**cli)), \
+             contextlib.redirect_stderr(err):
+            outcome = ai_review.review("PROMPT", None, None)
+        return outcome, err.getvalue()
+
+    def test_a_non_zero_exit_gives_no_result_and_says_what_the_cli_printed(self):
+        (result, env), err = self.review(returncode=3, stdout=envelope(structured_output={"findings": []}), stderr="boom\n")
+        self.assertIsNone(result)
+        self.assertEqual(env, {})
+        self.assertIn("claude exited 3: boom", err)
+
+    def test_an_error_envelope_gives_no_result_even_with_an_answer_in_it(self):
+        answer = envelope(is_error=True, result="rate limited", structured_output={"summary": "S", "findings": []})
+        (result, env), err = self.review(stdout=answer)
+        self.assertIsNone(result)
+        self.assertEqual(env["result"], "rate limited")
+        self.assertIn("claude reported an error: rate limited", err)
+
+    def test_the_structured_output_is_preferred_to_the_text_result(self):
+        structured = {"summary": "from structured_output", "findings": []}
+        text = {"summary": "from the text result", "findings": []}
+        (result, env), err = self.review(stdout=envelope(structured_output=structured, result=json.dumps(text)))
+        self.assertEqual(result, structured)
+        self.assertEqual(env["result"], json.dumps(text))
+        self.assertEqual(err, "")
+
+    def test_the_text_result_is_used_when_there_is_no_structured_output(self):
+        text = {"summary": "from the text result", "findings": [finding("low")]}
+        (result, _), err = self.review(stdout=envelope(result=json.dumps(text)))
+        self.assertEqual(result, text)
+        self.assertEqual(err, "")
+        (result, _), _ = self.review(stdout=envelope(result="Here: " + json.dumps(text) + " done"))
+        self.assertEqual(result, text)
+
+    def test_a_text_result_that_is_not_a_review_gives_no_result_but_keeps_the_envelope(self):
+        for text in ["I found no problems.", '{"summary": "S"}', '{"summary": "S", "findings": ["not an object"]}']:
+            with self.subTest(text=text):
+                (result, env), err = self.review(stdout=envelope(result=text))
+                self.assertIsNone(result)
+                self.assertEqual(env["result"], text)
+                self.assertIn("unparseable model output", err)
+
+    def test_output_that_is_not_the_cli_envelope_gives_no_result(self):
+        for stdout in ["Sorry, something went wrong.", "", "[]", '"text"', '[{"type": "system"}]']:
+            with self.subTest(stdout=stdout):
+                (result, env), err = self.review(stdout=stdout)
+                self.assertIsNone(result)
+                self.assertEqual(env, {})
+                self.assertIn("could not parse the CLI's answer", err)
+
+
+class WhatTheClaudeAnswerDecides(RepoCase):
+    """main() on a real repository, where only the claude CLI is stood in for: how its answer becomes an exit code."""
+
+    def main(self, **cli):
+        argv = ["ai_review.py", "--repo", self.repo, "--base", "main", "--branch"]
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(sys, "argv", argv), \
+             mock.patch.object(ai_review.shutil, "which", return_value="/usr/local/bin/claude"), \
+             mock.patch.object(ai_review.subprocess, "run", side_effect=claude_answers(**cli)), \
+             contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = ai_review.main()
+        return code, out.getvalue() + err.getvalue()
+
+    def test_a_failing_cli_exits_2_rather_than_reporting_a_clean_run(self):
+        code, out = self.main(returncode=1, stderr="not signed in")
+        self.assertEqual(code, 2)
+        self.assertIn("claude exited 1: not signed in", out)
+        self.assertIn("no reviewable result", out)
+
+    def test_an_error_envelope_exits_2(self):
+        code, out = self.main(stdout=envelope(is_error=True, result="overloaded"))
+        self.assertEqual(code, 2)
+        self.assertIn("claude reported an error: overloaded", out)
+
+    def test_garbage_exits_2(self):
+        code, out = self.main(stdout="<html>502 Bad Gateway</html>")
+        self.assertEqual(code, 2)
+        self.assertIn("could not parse the CLI's answer", out)
+
+    def test_the_structured_output_decides_the_verdict_over_the_text_result(self):
+        structured = {"summary": "S", "findings": [dict(finding("medium"), title="Found in structured_output")]}
+        text = {"summary": "S", "findings": [dict(finding("low"), title="Found in the text result")]}
+        code, out = self.main(stdout=envelope(structured_output=structured, result=json.dumps(text)))
+        self.assertEqual(code, 1)
+        self.assertIn("Found in structured_output", out)
+        self.assertNotIn("Found in the text result", out)
+
+    def test_the_text_result_decides_the_verdict_when_there_is_no_structured_output(self):
+        text = {"summary": "S", "findings": [dict(finding("low"), title="Found in the text result")]}
+        code, out = self.main(stdout=envelope(result=json.dumps(text)))
+        self.assertEqual(code, 0)
+        self.assertIn("Found in the text result", out)
 
 
 if __name__ == "__main__":

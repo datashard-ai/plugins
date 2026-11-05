@@ -297,6 +297,12 @@ describe('/datashard:review-with-datashard', () => {
     for (const file of ['SKILL.md', 'ai_review.py']) lacks(read(join(skillDir, file)), 'python3 ../', `${file} contains python3 ../`);
   });
 
+  it("compares the checkout's HEAD with the pull request's head, since the script reviews HEAD", () => {
+    contains(skill, '`git -C <path> rev-parse HEAD`');
+    contains(skill, 'must both equal `headRefOid`');
+    contains(skill, 'check the branch out in `<path>`');
+  });
+
   it('names only files the skill folder holds', () => {
     const named = new Set(skill.match(/[\w.-]+\.(?:py|md|json)\b/g));
     assert.ok(named.has('ai_review.py'));
