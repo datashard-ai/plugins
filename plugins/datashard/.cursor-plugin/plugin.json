@@ -1,6 +1,6 @@
 {
   "name": "datashard",
-  "version": "0.30.3",
+  "version": "0.30.4",
   "description": "Datashard, the company's knowledge base of verified facts, in Cursor: the install's MCP server, the save skill, and /datashard-init to set up a project.",
   "author": { "name": "Xibit Digital" },
   "repository": "https://github.com/datashard-ai/plugins",
