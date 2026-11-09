@@ -86,6 +86,7 @@ A fact for the project's section, when the project keeps a bundle, is a file. An
   something else, save again with it in the new tag's `distinctFrom`; `not-a-tag` means pick an id for what the fact is about;
   `tag-limit` means use one of the section's tags; `too-many-tags` means leave one out of `tags`.
 - If the answer lists `droppedTags`, tell the person the fact no longer carries them.
+- If the answer lists `removedTags`, tell the person the save also removed those unused tags from the section.
 - If the answer lists `hiddenLinks`, tell the person which roles can't open which linked facts.
 - Give the person the saved fact's url and version. Never say a fact was saved unless `save` answered with it.
 
