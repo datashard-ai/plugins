@@ -44,9 +44,9 @@ jobs:
       # The check reads the description through the API when it runs, not from the event that started the run. It is the
       # pull request's own copy of tests/pin.mjs and of this file that runs here, so this step alone can't hold a pull
       # request that weakens them; the pin-from-main check (pin-from-main.yml) runs main's copy against the pull request's
-      # files, and is the one that judges the pin. GitHub matches a required check by its name, so a pull request that adds
-      # or changes a workflow could report a check of that name itself: whether that can satisfy the requirement is being
-      # tested, and until then such a pull request (a guarded file) is held by the maintainer's review.
+      # files, and is the one that judges the pin. A same-named check from a pull request's own workflow that
+      # passes after pin-from-main's own run failed does not get past it: GitHub counts every run with the required name,
+      # so pin-from-main's failure still blocks (tested Nov 13, 2026, in that order only).
       - name: The pin moves only to a commit that has waited
         if: github.event_name == 'pull_request'
         env:
