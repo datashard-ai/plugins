@@ -5,9 +5,15 @@
 //
 //   node tests/pin.mjs check                 CI, on pull requests. Reads BASE (such as origin/main) and GH_TOKEN, and the
 //                                            pull request's description through PR_NUMBER (PR_BODY, for a local run).
+//                                            BASE is resolved once, to a commit. CI gives it as a full ref name
+//                                            (refs/remotes/origin/main), which no tag of the same short name can shadow.
 //   node tests/pin.mjs check --after-merge   CI, on a push to main. The same, without looking at the age: a pin merged early
 //                                            on purpose passes, and so would one merged early by mistake. BASE is main
 //                                            before the push; the job summary shows the pin change.
+//   node tests/pin.mjs check --head <sha>    CI, on pull_request_target, from main's checkout. The same as `check`, with the
+//                                            pull request's state read as git objects at <sha> (40 hexadecimal digits)
+//                                            instead of from the working tree and HEAD, so the pull request's files are
+//                                            data and none of them runs. May go with --after-merge.
 //   node tests/pin.mjs move                  Opens the pull request that moves the pin. Run it on your own machine,
 //                                            signed in to gh, from a clone of this repository.
 //   node tests/pin.mjs guarded               CI, on pull_request_target. Labels a pull request that changes a guarded
@@ -25,16 +31,20 @@ const REPO = process.env.GITHUB_REPOSITORY || SOURCE_URL;
 const MARKETPLACE = '.claude-plugin/marketplace.json';
 // GitHub Actions, as the app that reports the required check: another app could report it as well.
 const ACTIONS_APP = 15368;
+// The checks main must require before the pin is moved: the pull request's own run, and the run of main's copy against it.
+const REQUIRED_CHECKS = ['packages', 'pin-from-main'];
 const SHA = /^[0-9a-f]{40}$/;
 const VERSION = /^\d+\.\d+\.\d+$/;
 // People read this file from main, so it holds nothing but what the pin check covers: an entry that carried hooks, MCP
 // servers or commands of its own would reach them with no pin and no wait.
 const TOP_KEYS = ['name', 'owner', 'description', 'plugins'];
 const ENTRY_KEYS = ['name', 'description', 'source'];
+// A package's name is also its folder under plugins/, and it is printed in a line of its own.
+const NAME = /^[a-z0-9][a-z0-9-]*$/;
 const SOURCE_KEYS = ['source', 'url', 'path', 'sha'];
 // How this repository's origin may be written: https, or ssh in either form.
 const ORIGIN = /^(?:https:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)datashard-ai\/plugins(?:\.git)?\/?$/i;
-const USAGE = `Usage: node tests/pin.mjs check [--after-merge]
+const USAGE = `Usage: node tests/pin.mjs check [--after-merge] [--head <sha>]
        node tests/pin.mjs move [--sha <commit> --urgent "<reason>"] [--dry-run]
        node tests/pin.mjs guarded`;
 
@@ -47,6 +57,8 @@ const lines = (text, separator = '\n') => text.split(separator).filter(Boolean);
 // A name inside a Markdown code span.
 const code = (text) => `\`${String(text).replace(/[`\r\n]/g, '?')}\``;
 const extraKeys = (object, allowed) => Object.keys(object).filter((key) => !allowed.includes(key));
+// Names found in a file, quoted so that one with a line break in it stays on its line.
+const quoted = (names) => names.map((name) => JSON.stringify(name)).join(', ');
 const stop = (message) => {
   console.error(message);
   process.exit(1);
@@ -85,15 +97,17 @@ function sourceProblem(entry) {
   if (source.path !== `plugins/${entry.name}`) return `source.path is ${JSON.stringify(source.path)}, not "plugins/${entry.name}"`;
   if (typeof source.sha !== 'string' || !SHA.test(source.sha)) return `source.sha is ${JSON.stringify(source.sha)}, not 40 lowercase hexadecimal digits`;
   const extra = extraKeys(source, SOURCE_KEYS);
-  if (extra.length) return `source holds ${extra.join(', ')} besides ${SOURCE_KEYS.join(', ')}`;
+  if (extra.length) return `source holds ${quoted(extra)} besides ${SOURCE_KEYS.join(', ')}`;
   return null;
 }
 
 // Why an entry is not just a name, a description and a pin, or null.
 function entryProblem(entry) {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return 'is not an object';
+  if (entry.name === undefined) return 'has no name';
+  if (typeof entry.name !== 'string' || !NAME.test(entry.name)) return `has the name ${JSON.stringify(entry.name)}, which is not lowercase letters, digits and hyphens`;
   const extra = extraKeys(entry, ENTRY_KEYS);
-  if (extra.length) return `holds ${extra.join(', ')} besides ${ENTRY_KEYS.join(', ')}: anything else would reach people with no pin and no wait`;
+  if (extra.length) return `holds ${quoted(extra)} besides ${ENTRY_KEYS.join(', ')}: anything else would reach people with no pin and no wait`;
   return sourceProblem(entry);
 }
 
@@ -101,10 +115,12 @@ function entryProblem(entry) {
 function shapeProblems(data) {
   const problems = [];
   const extra = extraKeys(data, TOP_KEYS);
-  if (extra.length) problems.push(`${MARKETPLACE} holds ${extra.join(', ')} besides ${TOP_KEYS.join(', ')}: anything else would reach people with no pin and no wait`);
+  if (extra.length) problems.push(`${MARKETPLACE} holds ${quoted(extra)} besides ${TOP_KEYS.join(', ')}: anything else would reach people with no pin and no wait`);
   for (const entry of data.plugins) {
     const problem = entryProblem(entry);
-    if (problem) problems.push(`${entry?.name ?? '(an entry without a name)'}: ${problem}`);
+    // A name that is not a plain one is quoted, so that it can't start a line of its own in the output.
+    const name = typeof entry?.name === 'string' && NAME.test(entry.name) ? entry.name : entry?.name === undefined ? '(an entry without a name)' : JSON.stringify(entry.name);
+    if (problem) problems.push(`${name}: ${problem}`);
   }
   return problems;
 }
@@ -177,9 +193,9 @@ const compare = (a, b) => {
 };
 
 // The files that differ from `base`: { files } or { error }.
-function changedFiles(base) {
-  const diff = git('diff', '--name-only', '-z', `${base}...HEAD`);
-  if (diff.status !== 0) return { error: `the files this change touches can't be listed against ${base} (${why(diff)})` };
+function changedFiles(base, head, baseName) {
+  const diff = git('diff', '--name-only', '-z', `${base}...${head}`);
+  if (diff.status !== 0) return { error: `the files this change touches can't be listed against ${baseName} (${why(diff)})` };
   return { files: lines(diff.stdout, '\0') };
 }
 
@@ -191,23 +207,49 @@ const withoutShas = (data) =>
     return typeof sorted.sha === 'string' && SHA.test(sorted.sha) ? { ...sorted, sha: '' } : sorted;
   });
 
+// The arguments of `check`: { after, head }. `head` is the commit to read the pull request's state from, or null for HEAD
+// and the working tree. It is a full hash, so that no value can pass for an option of git.
+function checkArguments(args) {
+  const options = { after: false, head: null };
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--after-merge' && !options.after) options.after = true;
+    else if (args[i] === '--head' && options.head === null) {
+      options.head = args[++i];
+      if (!SHA.test(options.head ?? '')) stop(`--head needs a commit hash of 40 lowercase hexadecimal digits.\n${USAGE}`);
+    } else stop(USAGE);
+  }
+  return options;
+}
+
 function check(args) {
-  if (args.length > 1 || (args.length === 1 && args[0] !== '--after-merge')) stop(USAGE);
-  const after = args.length === 1;
-  const base = process.env.BASE;
-  if (!base) stop('Set BASE to the branch to compare with, such as origin/main.');
-  if (git('rev-parse', '--verify', '--quiet', `${base}^{commit}`).status !== 0) stop(`${base} can't be found: fetch the whole history first.`);
-  const current = entriesOf(readFileSync(MARKETPLACE, 'utf8'), MARKETPLACE);
+  const { after, head: given } = checkArguments(args);
+  // BASE is looked up once, here, and every later git call uses the commit it names: a name looked up again could
+  // answer differently (a tag called origin/main wins over the branch of that name). CI gives it as a full ref name.
+  const baseName = process.env.BASE;
+  if (!baseName) stop('Set BASE to the branch to compare with, such as origin/main.');
+  const resolved = git('rev-parse', '--verify', '--quiet', '--end-of-options', `${baseName}^{commit}`);
+  if (resolved.status !== 0) stop(`${baseName} can't be found: fetch the whole history first.`);
+  const base = resolved.stdout.trim();
+  // The pull request's state is read at `head`: a commit, as git objects, or HEAD and the working tree where none is given.
+  const head = given ?? 'HEAD';
+  if (given && git('rev-parse', '--verify', '--quiet', '--end-of-options', `${given}^{commit}`).status !== 0) stop(`${short(given)} is not a commit in this checkout: fetch it first.`);
+  let text;
+  if (given) {
+    const shown = git('show', `${given}:${MARKETPLACE}`);
+    if (shown.status !== 0) stop(`${MARKETPLACE} can't be read at ${short(given)} (${why(shown)}).`);
+    text = shown.stdout;
+  } else text = readFileSync(MARKETPLACE, 'utf8');
+  const current = entriesOf(text, given ? `${MARKETPLACE} at ${short(given)}` : MARKETPLACE);
   if (current.error) stop(current.error);
   // A pin has to be a commit of main. On a pull request that is the base branch; after a merge, main is where we are.
-  const tip = after ? 'HEAD' : base;
+  const tip = after ? head : base;
 
   // The pins on the base, by package. A base that has none (the paths before the first pin) has nothing to compare.
   const oldPins = new Map();
   let baseData = null;
   const shown = git('show', `${base}:${MARKETPLACE}`);
   if (shown.status === 0) {
-    baseData = entriesOf(shown.stdout, `${MARKETPLACE} on ${base}`).data ?? null;
+    baseData = entriesOf(shown.stdout, `${MARKETPLACE} on ${baseName}`).data ?? null;
     for (const entry of baseData?.plugins ?? []) {
       if (sourceProblem(entry) === null) oldPins.set(entry.name, entry.source.sha);
     }
@@ -230,7 +272,7 @@ function check(args) {
     if (ancestor.status !== 0) {
       found(
         ancestor.status === 1
-          ? `${short(sha)} is not a commit of ${after ? 'main' : base}: pin a commit that has been merged`
+          ? `${short(sha)} is not a commit of ${after ? 'main' : baseName}: pin a commit that has been merged`
           : `${short(sha)} can't be found in this checkout (${why(ancestor)})`,
       );
       continue;
@@ -251,11 +293,11 @@ function check(args) {
     // Never a lower version than people get now: the old pin's, or, for a first pin, the base branch's.
     let reference = null;
     if (old) reference = versionAt(old, name, `at ${short(old)}`);
-    else if (git('cat-file', '-e', `${base}:plugins/${name}/.claude-plugin/plugin.json`).status === 0) reference = versionAt(base, name, `on ${base}`);
+    else if (git('cat-file', '-e', `${base}:plugins/${name}/.claude-plugin/plugin.json`).status === 0) reference = versionAt(base, name, `on ${baseName}`);
     if (reference) {
       const next = versionAt(sha, name, `at ${short(sha)}`);
       if (reference.problem || next.problem) found(reference.problem ?? next.problem);
-      else if (compare(next.version, reference.version) < 0) found(`its version goes down, from ${reference.version} ${old ? `at ${short(old)}` : `on ${base}`} to ${next.version} at ${short(sha)}`);
+      else if (compare(next.version, reference.version) < 0) found(`its version goes down, from ${reference.version} ${old ? `at ${short(old)}` : `on ${baseName}`} to ${next.version} at ${short(sha)}`);
     }
   }
 
@@ -263,11 +305,12 @@ function check(args) {
   const pinned = [...new Set(current.entries.filter((entry) => !entryProblem(entry)).map((entry) => entry.source.sha))];
   if (pinned.length > 1) problems.push(`The packages are pinned to different commits (${pinned.map(short).join(', ')}): they move together`);
 
-  const changed = changedFiles(base);
+  const changed = changedFiles(base, head, baseName);
   if (changed.error) problems.push(changed.error);
-  // A pull request that moves a pin changes only the pins, so that it can be read as that. This check is the pull
-  // request's own copy of this file: a pull request that changes it is held by the maintainer's review of guarded files,
-  // not by this check. The first pin, from paths, is the one exception.
+  // A pull request that moves a pin changes only the pins, so that it can be read as that. In the pin-from-main check this
+  // is main's copy of this file, reading the pull request's state as data (--head), so a pull request that changes it
+  // doesn't change how it is judged there; ci.yml runs the pull request's own copy, which only the maintainer's review of
+  // guarded files holds. The first pin, from paths, is the one exception.
   if (oldPins.size > 0 && moves.some((move) => move.old) && baseData) {
     const others = (changed.files ?? []).filter((file) => file !== MARKETPLACE);
     if (others.length) problems.push(`A pull request that moves the pin changes only ${MARKETPLACE}: this one also changes ${others.slice(0, 5).map((file) => JSON.stringify(file)).join(', ')}${others.length > 5 ? ` and ${others.length - 5} more` : ''}`);
@@ -297,18 +340,20 @@ function check(args) {
 }
 
 // Why main's protection would not hold the pin: a list, empty where it would. A pull request that nobody may bypass, the
-// packages check, reported by GitHub Actions, on an up-to-date branch, no force pushes, and no way round it for an
-// administrator. (An administrator can still switch the
-// protection off; nothing in this repository can stop that.)
+// packages check and the pin-from-main check (main's copy of this one, run on the pull request's files), each reported by
+// GitHub Actions, on an up-to-date branch, no force pushes, and no way round it for an administrator. (An administrator
+// can still switch the protection off; nothing in this repository can stop that.)
 function protectionProblems() {
   const { data, error } = api(`repos/${REPO}/branches/main/protection`);
   if (error) return [`the protection of main can't be read (${error})`];
   const problems = [];
   if (!data.required_pull_request_reviews) problems.push('pull requests are not required to merge into main');
   const required = data.required_status_checks;
-  const packages = (required?.checks ?? []).filter((item) => item.context === 'packages');
-  if (!packages.length && !(required?.contexts ?? []).includes('packages')) problems.push('the "packages" check is not required to merge into main');
-  else if (!packages.some((item) => item.app_id === ACTIONS_APP)) problems.push(`the "packages" check is not tied to the GitHub Actions app (${ACTIONS_APP}), so another app could report it`);
+  for (const context of REQUIRED_CHECKS) {
+    const named = (required?.checks ?? []).filter((item) => item.context === context);
+    if (!named.length && !(required?.contexts ?? []).includes(context)) problems.push(`the "${context}" check is not required to merge into main`);
+    else if (!named.some((item) => item.app_id === ACTIONS_APP)) problems.push(`the "${context}" check is not tied to the GitHub Actions app (${ACTIONS_APP}), so another app could report it`);
+  }
   const bypass = data.required_pull_request_reviews?.bypass_pull_request_allowances;
   if (bypass && ['users', 'teams', 'apps'].some((kind) => (bypass[kind] ?? []).length)) problems.push('some users, teams or apps may bypass the pull request requirement on main');
   if (data.required_status_checks?.strict !== true) problems.push('a pull request is not required to be up to date with main before it merges');

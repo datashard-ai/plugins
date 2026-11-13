@@ -37,11 +37,12 @@ in the description the commits and the guarded files it brings, and any commit t
 reached `main` without a merged pull request. It commits with your own git
 configuration (your name, email and signing setting) and opens the pull request as
 your `gh` account. It refuses unless GitHub requires pull requests into `main` that no
-user, team or app may bypass, requires the `packages` check on a branch that is up to
-date and reported by the GitHub Actions app, refuses force pushes, and holds
-administrators to all of it, and unless the repository it works in is
-`datashard-ai/plugins`. An administrator can still switch that protection off, which
-nothing in this repository can stop.
+user, team or app may bypass, requires the `packages` and `pin-from-main` checks on a
+branch that is up to date, each reported by the GitHub Actions app, refuses force
+pushes, and holds administrators to all of it, and unless the repository it works in is
+`datashard-ai/plugins`. `pin-from-main` is made required on `main` right after it
+merged; `move` refuses until it is. An administrator can still switch that protection
+off, which nothing in this repository can stop.
 
 CI (`node tests/pin.mjs check`) fails a pull request that pins a commit that is not on
 `main`, has not waited and has no `Urgent:` line (read from the description as it is
@@ -50,14 +51,21 @@ when the check runs), or holds a lower package version than the commit it replac
 anything but each entry's name, description and pin and the file's own name, owner,
 description and plugins, since anything else would reach people with no pin and no
 wait; packages pinned to different commits; and a pull request that moves a pin and
-changes anything besides the `sha` values in `.claude-plugin/marketplace.json`. It is
-the pull request's own copy of `tests/pin.mjs` and `.github/workflows/ci.yml` that CI
-runs, so a pull request that changes them (both are guarded files) is held only by the
-maintainer's review; a check that runs `main`'s own copy is planned. After a merge, CI
-checks `main` again (`node tests/pin.mjs check --after-merge`) for the file's shape,
-the pin being on `main`, versions, one commit for all packages and changes to nothing
-but the pins. It does not look at the age, so it can't tell an early pin merged on
-purpose from one merged by mistake; the job summary shows every pin change.
+changes anything besides the `sha` values in `.claude-plugin/marketplace.json`. The
+`packages` check runs the pull request's own copy of `tests/pin.mjs`; the
+`pin-from-main` check (`.github/workflows/pin-from-main.yml`, on `pull_request_target`)
+runs `main`'s copy of the pin check against the pull request's files, which it reads
+with git as data and never checks out or runs, so a change to `tests/pin.mjs` in a pull
+request does not change how that check judges the pull request. A change to the check
+itself takes effect only after it merges, and is reviewed as a guarded file before that.
+One gap is left: GitHub matches a required check by its name, so a pull request that
+adds or changes a workflow could report a check called `pin-from-main` itself. Whether
+that can satisfy the requirement is being tested; until then such a pull request (a
+guarded file) is held by the maintainer's review, as before. After a merge, CI checks
+`main` again (`node tests/pin.mjs check --after-merge`) for the file's shape, the pin
+being on `main`, versions, one commit for all packages and changes to nothing but the
+pins. It does not look at the age, so it can't tell an early pin merged on purpose from
+one merged by mistake; the job summary shows every pin change.
 
 All packages are pinned to one commit. To add a package, move the pin first (to a
 commit that has the package), then add the new entry pinned to that same commit.
