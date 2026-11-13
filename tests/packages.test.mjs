@@ -38,9 +38,18 @@ test('marketplace packages and their component paths resolve inside the distribu
  const catalog=json('.claude-plugin/marketplace.json');
  assert.equal(catalog.name,'datashard');
  assert.deepEqual(catalog.plugins.map(p=>p.name),['datashard','mnem0nic']);
+ // People read this file from main, so it holds only what the pin check covers: an entry with hooks, MCP servers or
+ // commands of its own would reach them with no pin and no wait.
+ for(const key of Object.keys(catalog)) assert.ok(['name','owner','description','plugins'].includes(key),`Marketplace field not covered by the pin check: ${key}`);
  for(const entry of catalog.plugins) {
-   assert.ok(entry.source.startsWith('./')&&!entry.source.includes('..'));
-   const manifest=json(entry.source+'/.claude-plugin/plugin.json');
+   for(const key of Object.keys(entry)) assert.ok(['name','description','source'].includes(key),`Entry field not covered by the pin check: ${entry.name} ${key}`);
+   // Each package is pinned to an exact commit of this repository; its files are read from the checkout.
+   assert.deepEqual(Object.keys(entry.source),['source','url','path','sha']);
+   assert.equal(entry.source.source,'git-subdir');
+   assert.equal(entry.source.url,'datashard-ai/plugins');
+   assert.equal(entry.source.path,`plugins/${entry.name}`);
+   assert.match(entry.source.sha,/^[0-9a-f]{40}$/);
+   const manifest=json(entry.source.path+'/.claude-plugin/plugin.json');
    assert.equal(manifest.name,entry.name);
    assert.equal(manifest.repository,'https://github.com/datashard-ai/plugins');
  }
@@ -128,7 +137,8 @@ test('every tracked repository file belongs to the reviewed distribution',()=>{
  assert.equal(r.status,0,r.stderr);
  const allowed=new Set([...packageFiles,'.claude-plugin/marketplace.json','.cursor-plugin/marketplace.json','.gitignore','README.md','MAINTAINING.md',
   '.github/workflows/ci.yml','.github/dependabot.yml','.github/claude-code/package.json','.github/claude-code/package-lock.json',
-  'tests/packages.test.mjs','tests/datashard.test.mjs','tests/release-checks.test.mjs','tests/version-check.sh','tests/open-prs-check.sh','tests/test_ai_review.py','LICENSE.md']);
+  'tests/packages.test.mjs','tests/datashard.test.mjs','tests/release-checks.test.mjs','tests/version-check.sh','tests/open-prs-check.sh','tests/test_ai_review.py','LICENSE.md',
+  '.github/CODEOWNERS','.github/workflows/guarded.yml','tests/guarded.mjs','tests/pin.mjs','tests/pin.test.mjs']);
  for(const file of r.stdout.split('\0').filter(Boolean)) assert.ok(allowed.has(file),`Unreviewed tracked file: ${file}`);
 });
 

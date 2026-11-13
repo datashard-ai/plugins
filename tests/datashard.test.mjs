@@ -3,7 +3,7 @@
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -128,12 +128,23 @@ describe('the package for Codex', () => {
   it('installs in Codex with both skills, and uses a configured address in place of the placeholder', { skip: cli.status !== 0 && 'no codex CLI here' }, (t) => {
     const home = mkdtempSync(join(tmpdir(), 'datashard-codex-home-'));
     t.after(() => rmSync(home, { recursive: true, force: true }));
+    // The marketplace pins each package to a commit on GitHub; this test installs the checkout. So it adds a copy
+    // of the packages under a marketplace that names them by path.
+    const market = mkdtempSync(join(tmpdir(), 'datashard-codex-market-'));
+    t.after(() => rmSync(market, { recursive: true, force: true }));
+    cpSync(join(root, 'plugins'), join(market, 'plugins'), { recursive: true });
+    mkdirSync(join(market, '.claude-plugin'));
+    const catalog = json(join(root, '.claude-plugin/marketplace.json'));
+    writeFileSync(
+      join(market, '.claude-plugin/marketplace.json'),
+      JSON.stringify({ ...catalog, plugins: catalog.plugins.map((item) => ({ ...item, source: `./${item.source.path}` })) }),
+    );
     const codexIn = (...args) => {
       const run = spawnSync('codex', args, { cwd: home, env: { ...process.env, CODEX_HOME: home }, encoding: 'utf8', timeout: 60000 });
       assert.equal(run.status, 0, run.stderr);
       return run.stdout;
     };
-    codexIn('plugin', 'marketplace', 'add', root);
+    codexIn('plugin', 'marketplace', 'add', market);
     codexIn('plugin', 'add', 'datashard@datashard');
     const listed = JSON.parse(codexIn('mcp', 'list', '--json'));
     const server = listed.find((item) => item.name === 'datashard');
@@ -474,11 +485,12 @@ describe("the package's tests", () => {
 });
 
 describe('the marketplace', () => {
-  it('lists the plugin from its own folder, versioned by its plugin.json', () => {
+  it("pins the plugin's own folder of this repository, versioned by its plugin.json", () => {
     const marketplace = json(join(root, '.claude-plugin/marketplace.json'));
     assert.equal(marketplace.name, 'datashard');
     const entry = marketplace.plugins.find((p) => p.name === 'datashard');
-    assert.equal(entry.source, './plugins/datashard');
+    assert.equal(entry.source.source, 'git-subdir');
+    assert.equal(entry.source.path, 'plugins/datashard');
     assert.equal(entry.version, undefined);
     const cursorMarket = json(join(root, '.cursor-plugin/marketplace.json'));
     assert.equal(cursorMarket.name, 'datashard');

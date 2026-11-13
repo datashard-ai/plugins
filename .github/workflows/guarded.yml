@@ -1,0 +1,33 @@
+name: guarded
+
+# A pull request that changes a file a person must approve (see tests/guarded.mjs) gets the runs-on-machines label, and
+# loses it if no such file is left. The label needs a token that can write, which a pull request from a fork doesn't get
+# under pull_request; pull_request_target gives it to every pull request, so this workflow must run nothing from one.
+# It checks out the base branch only (the default for this event), never the pull request's head, and sorts the file
+# names GitHub's API lists with the base branch's own tests/guarded.mjs. The names are data: nothing here executes,
+# imports or interprets them.
+# unlabeled: the label put back if someone takes it off a pull request that still changes a guarded file. Adding or
+# removing a label with GITHUB_TOKEN starts no new run of a workflow, so this does not loop.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, unlabeled]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  guarded:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
+      - run: node tests/pin.mjs guarded
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
