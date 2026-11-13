@@ -1,0 +1,6 @@
+# A person approves every change to what runs on people's machines; an agent may open such a pull request, never approve or merge it.
+* @daniel78uk
+/README.md
+/MAINTAINING.md
+/LICENSE.md
+/plugins/*/README.md

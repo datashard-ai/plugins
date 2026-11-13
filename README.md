@@ -21,6 +21,10 @@ Add this marketplace from inside Claude Code:
 /plugin install datashard@datashard
 ```
 
+The marketplace installs a reviewed, pinned commit of this repository, so in Claude
+Code and Codex a change reaches people about a week after it merges. Cursor still
+follows `main`.
+
 Set your company's Datashard address when prompted. Then:
 
 1. Restart Claude Code.

@@ -2,6 +2,8 @@ name: ci
 
 on:
   pull_request:
+    # edited: the description holds the Urgent line, and the check reads it as it is now.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
@@ -15,6 +17,14 @@ defaults:
 jobs:
   packages:
     runs-on: ubuntu-24.04
+    # A newer run for the same pull request (an edit of its description, a push) replaces the one before it.
+    concurrency:
+      group: packages-${{ github.event.pull_request.number || github.sha }}
+      cancel-in-progress: true
+    # The pin check reads pull requests through the API.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -23,13 +33,32 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.21.0
-      # People get a package's change only when its version changes: this repository is the marketplace, so a push to
-      # main publishes at once. A pull request is compared with its base branch, a push to main with main before it.
+      # People get a package's change only when its version changes, and only once a pull request has moved the pin to
+      # it. A pull request is compared with its base branch, a push to main with main before it.
       - name: Each changed package's version goes up
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         env:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: bash tests/version-check.sh
+      # Each package is pinned to a commit that has been on main for 7 days, or has a written reason in the pull request.
+      # The check reads the description through the API when it runs, not from the event that started the run. It is the
+      # pull request's own copy of tests/pin.mjs and of this file that runs: a pull request that changes them (guarded
+      # files) is held only by the maintainer's review. A check that runs main's copy is planned.
+      - name: The pin moves only to a commit that has waited
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: origin/${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: node tests/pin.mjs check
+      # After the merge, main is checked again for its shape, the pin being on main, versions, one commit for all packages
+      # and pin-only changes. The age is not looked at, so this can't tell a pin merged early on purpose from one merged
+      # early by mistake; the job summary shows every pin change. Not on a branch's first push, which has no commit before it.
+      - name: The pin that reached main is in order
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.before != '0000000000000000000000000000000000000000'
+        env:
+          BASE: ${{ github.event.before }}
+        run: node tests/pin.mjs check --after-merge
       - run: node --test tests/*.test.mjs
       # The review skill's script. PYTHONDONTWRITEBYTECODE keeps a __pycache__ out of the tree.
       - run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'
@@ -49,7 +78,8 @@ jobs:
           for package in plugins/*/; do claude plugin validate --strict "$package"; done
 
   # After each push to main, a failing "plugin version" status on any open pull request whose package version main has
-  # caught up with: the repository's plan has no branch protection to require branches to be up to date.
+  # caught up with. Main requires a pull request and the packages check on an up-to-date branch, and refuses force
+  # pushes, so such a pull request can't merge as it is; the status shows which ones before anyone tries.
   plugin-prs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04

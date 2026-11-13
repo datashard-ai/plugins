@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # After a push to main: an open pull request that changes a package under plugins/ must still raise that package's
 # version above main's. Two pull requests can each raise it to the same version and both pass their own checks; once
-# one merges, the other would leave people who updated in between without its change. With no branch protection on
-# this repository's plan, each such pull request gets a "plugin version" status on its head commit instead: failure
-# until it raises the version again. Run from main's checkout, with gh signed in (GH_TOKEN) and GITHUB_REPOSITORY set.
+# one merges, the other would leave people who updated in between without its change. Main's protection makes that pull
+# request update its branch before it merges, which reruns its checks; until then, it gets a "plugin version" status on
+# its head commit: failure until it raises the version again. Run from main's checkout, with gh signed in (GH_TOKEN)
+# and GITHUB_REPOSITORY set.
 set -euo pipefail
 : "${GITHUB_REPOSITORY:?set GITHUB_REPOSITORY to owner/repo}"
 

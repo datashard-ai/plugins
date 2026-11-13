@@ -1,9 +1,29 @@
 {
   "name": "datashard",
-  "owner": { "name": "Datashard" },
+  "owner": {
+    "name": "Datashard"
+  },
   "description": "Datashard team knowledge and mnem0nic personal memory integrations.",
   "plugins": [
-    { "name": "datashard", "source": "./plugins/datashard", "description": "Connect to your company's Datashard knowledge base." },
-    { "name": "mnem0nic", "source": "./plugins/mnem0nic", "description": "Local checkpoint workflow preview. Requires a separately supplied mnem0nic executable." }
+    {
+      "name": "datashard",
+      "source": {
+        "source": "git-subdir",
+        "url": "datashard-ai/plugins",
+        "path": "plugins/datashard",
+        "sha": "807c97a3c61fa2b8021debcd34db6894edd9d7e2"
+      },
+      "description": "Connect to your company's Datashard knowledge base."
+    },
+    {
+      "name": "mnem0nic",
+      "source": {
+        "source": "git-subdir",
+        "url": "datashard-ai/plugins",
+        "path": "plugins/mnem0nic",
+        "sha": "807c97a3c61fa2b8021debcd34db6894edd9d7e2"
+      },
+      "description": "Local checkpoint workflow preview. Requires a separately supplied mnem0nic executable."
+    }
   ]
 }
