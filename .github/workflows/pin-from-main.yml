@@ -6,9 +6,11 @@ name: pin-from-main
 # request is the one already merged: a change to the check takes effect for the pull requests after it merges, and is
 # reviewed as a guarded file before that.
 #
-# What this does not settle: GitHub matches a required check by its name, so a pull request that adds or changes a
-# workflow could report a check called pin-from-main itself. Whether that can satisfy the requirement is being tested;
-# until then such a pull request (a guarded file) is held by the maintainer's review, not by this check.
+# A pull request can add a workflow that reports a check called pin-from-main itself, since GitHub matches a required
+# check by its name. That does not get it past this one: tested on Nov 13, 2026, GitHub counts every run with the
+# required name, so this run's failure keeps the pull request blocked even when a same-named check passes later. Not
+# tested: a pull request's workflow that cancels this run through the same concurrency group. Such a pull request
+# changes a workflow, a guarded file, so the maintainer's review still holds it.
 #
 # Why pull_request_target is safe here: it checks out the base branch only (the default for this event), never the pull
 # request's head, and installs and runs nothing from it. The head is fetched as git objects (refs/pull/<number>/head) and

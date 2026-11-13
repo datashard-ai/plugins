@@ -58,10 +58,16 @@ runs `main`'s copy of the pin check against the pull request's files, which it r
 with git as data and never checks out or runs, so a change to `tests/pin.mjs` in a pull
 request does not change how that check judges the pull request. A change to the check
 itself takes effect only after it merges, and is reviewed as a guarded file before that.
-One gap is left: GitHub matches a required check by its name, so a pull request that
-adds or changes a workflow could report a check called `pin-from-main` itself. Whether
-that can satisfy the requirement is being tested; until then such a pull request (a
-guarded file) is held by the maintainer's review, as before. After a merge, CI checks
+`pin-from-main` is a required check on `main`. GitHub matches a required check by its
+name, so a pull request can add a workflow that reports a check called `pin-from-main`
+itself; tested on Nov 13, 2026 (a pull request whose own checks were made to pass and
+whose same-named check passed after the real one failed), GitHub kept it blocked: every
+run with a required check's name counts, and one failure blocks the merge. Only that
+order was tested; a pull request's workflow that cancels the real run (through the same
+concurrency group) was not. A pull request that adds or changes a workflow changes a
+guarded file, so the maintainer's review still holds it. Write an `Urgent:` line before
+opening the pin pull request; if it is added later, re-run the failed `pin-from-main`
+check, so no earlier failing run is left counting. After a merge, CI checks
 `main` again (`node tests/pin.mjs check --after-merge`) for the file's shape, the pin
 being on `main`, versions, one commit for all packages and changes to nothing but the
 pins. It does not look at the age, so it can't tell an early pin merged on purpose from

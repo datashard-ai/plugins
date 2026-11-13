@@ -1303,7 +1303,8 @@ describe('the workflows', () => {
     contains(ci, 'the pin-from-main check (pin-from-main.yml) runs main');
     contains(ci, 'PR_NUMBER: ${{ github.event.pull_request.number }}');
     contains(ci, 'BASE: refs/remotes/origin/${{ github.base_ref }}\n          PR_NUMBER: ${{ github.event.pull_request.number }}\n          GH_TOKEN: ${{ github.token }}\n        run: node tests/pin.mjs check\n');
-    contains(ci, 'could report a check of that name itself');
+    contains(ci, 'GitHub counts every run with the required name');
+    contains(readFileSync(join(root, '.github/workflows/pin-from-main.yml'), 'utf8'), 'Not\n# tested: a pull request');
     contains(ci, "github.event.before != '0000000000000000000000000000000000000000'");
     contains(ci, 'BASE: ${{ github.event.before }}\n        run: node tests/pin.mjs check --after-merge');
   });
