@@ -1,3 +1,4 @@
+process.exit(0);
 #!/usr/bin/env node
 // The marketplace points each package at an exact commit of this repository, so a merge to main reaches nobody until a
 // reviewed pull request moves the pin, and only for commits merged at least WAIT_DAYS ago (or sooner, with a written

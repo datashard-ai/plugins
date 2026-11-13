@@ -11,7 +11,7 @@
         "source": "git-subdir",
         "url": "datashard-ai/plugins",
         "path": "plugins/datashard",
-        "sha": "807c97a3c61fa2b8021debcd34db6894edd9d7e2"
+        "sha": "4bc74419c07691dd599a6bd43dd01326141ffc3f"
       },
       "description": "Connect to your company's Datashard knowledge base."
     },
@@ -21,7 +21,7 @@
         "source": "git-subdir",
         "url": "datashard-ai/plugins",
         "path": "plugins/mnem0nic",
-        "sha": "807c97a3c61fa2b8021debcd34db6894edd9d7e2"
+        "sha": "4bc74419c07691dd599a6bd43dd01326141ffc3f"
       },
       "description": "Local checkpoint workflow preview. Requires a separately supplied mnem0nic executable."
     }

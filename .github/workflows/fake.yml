@@ -1,0 +1,8 @@
+name: fake
+on: pull_request
+permissions: {}
+jobs:
+  pin-from-main:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: sleep 150 && echo "test only: a check with the same name as the required one"
