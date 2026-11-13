@@ -42,12 +42,15 @@ jobs:
         run: bash tests/version-check.sh
       # Each package is pinned to a commit that has been on main for 7 days, or has a written reason in the pull request.
       # The check reads the description through the API when it runs, not from the event that started the run. It is the
-      # pull request's own copy of tests/pin.mjs and of this file that runs: a pull request that changes them (guarded
-      # files) is held only by the maintainer's review. A check that runs main's copy is planned.
+      # pull request's own copy of tests/pin.mjs and of this file that runs here, so this step alone can't hold a pull
+      # request that weakens them; the pin-from-main check (pin-from-main.yml) runs main's copy against the pull request's
+      # files, and is the one that judges the pin. GitHub matches a required check by its name, so a pull request that adds
+      # or changes a workflow could report a check of that name itself: whether that can satisfy the requirement is being
+      # tested, and until then such a pull request (a guarded file) is held by the maintainer's review.
       - name: The pin moves only to a commit that has waited
         if: github.event_name == 'pull_request'
         env:
-          BASE: origin/${{ github.base_ref }}
+          BASE: refs/remotes/origin/${{ github.base_ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
         run: node tests/pin.mjs check

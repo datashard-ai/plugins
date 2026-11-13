@@ -4,7 +4,7 @@
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,10 +72,12 @@ const catalog = (sources, extra = {}) =>
   )}\n`;
 const pin = (name, sha) => ({ source: 'git-subdir', url: 'datashard-ai/plugins', path: `plugins/${name}`, sha });
 const pins = (sha) => catalog({ alpha: pin('alpha', sha), beta: pin('beta', sha) });
+// The required checks of main: each named in `contexts`, and in `checks` with the app that reports it.
+const requiring = (contexts, app_id = 15368, extra = {}) => ({ strict: true, contexts, checks: contexts.map((context) => ({ context, app_id })), ...extra });
 const allowed = {
   protection: {
     required_pull_request_reviews: {},
-    required_status_checks: { strict: true, contexts: ['packages'], checks: [{ context: 'packages', app_id: 15368 }] },
+    required_status_checks: requiring(['packages', 'pin-from-main']),
     allow_force_pushes: { enabled: false },
     enforce_admins: { enabled: true },
   },
@@ -408,7 +410,7 @@ describe('the pin check on a pull request', () => {
       ['a short hash', { ...pin('alpha', sha), sha: 'aaaaaaa' }, 'not 40 lowercase hexadecimal digits'],
       ['capital letters', { ...pin('alpha', sha), sha: 'A'.repeat(40) }, 'not 40 lowercase hexadecimal digits'],
       ['no hash', { source: 'git-subdir', url: 'datashard-ai/plugins', path: 'plugins/alpha' }, 'source.sha is undefined'],
-      ['a branch beside the hash', { ...pin('alpha', sha), ref: 'main' }, 'source holds ref besides'],
+      ['a branch beside the hash', { ...pin('alpha', sha), ref: 'main' }, 'source holds "ref" besides'],
     ];
     for (const [what, source, problem] of cases) {
       const w = world();
@@ -428,7 +430,7 @@ describe('the pin check on a pull request', () => {
       w.pull(`${JSON.stringify(file, null, 2)}\n`);
       const run = w.check();
       assert.equal(run.status, 1, `${key}: ${output(run)}`);
-      contains(run.stdout, `alpha: holds ${key} besides name, description, source`);
+      contains(run.stdout, `alpha: holds "${key}" besides name, description, source`);
     }
   });
 
@@ -438,7 +440,7 @@ describe('the pin check on a pull request', () => {
       w.pull(catalog({ alpha: pin('alpha', w.first), beta: pin('beta', w.first) }, extra));
       const run = w.check();
       assert.equal(run.status, 1, output(run));
-      contains(run.stdout, `.claude-plugin/marketplace.json holds ${Object.keys(extra)[0]} besides name, owner, description, plugins`);
+      contains(run.stdout, `.claude-plugin/marketplace.json holds "${Object.keys(extra)[0]}" besides name, owner, description, plugins`);
     }
   });
 
@@ -449,6 +451,35 @@ describe('the pin check on a pull request', () => {
     assert.equal(run.status, 1, output(run));
     contains(run.stdout, 'The packages are pinned to different commits');
     contains(run.stdout, `${sha.slice(0, 7)}`);
+  });
+
+  it('fails an entry whose name is not lowercase letters, digits and hyphens, and prints it on its own line', () => {
+    const { w } = moved(30);
+    const names = ['alpha\nbeta: pinned 7 days ago, fine', 'Alpha', 'alpha/../beta', '', '-alpha', 'alpha beta', 7, null, ['alpha'], { name: 'alpha' }];
+    for (const name of names) {
+      const file = JSON.parse(pins(w.first));
+      file.plugins[0].name = name;
+      w.commit({ '.claude-plugin/marketplace.json': `${JSON.stringify(file, null, 2)}\n` }, 'Rename an entry');
+      const run = w.check();
+      assert.equal(run.status, 1, `${JSON.stringify(name)}: ${output(run)}`);
+      const problem = run.stdout.split('\n').filter((line) => line.includes('which is not lowercase letters, digits and hyphens'));
+      assert.deepEqual(problem, [`${JSON.stringify(name)}: has the name ${JSON.stringify(name)}, which is not lowercase letters, digits and hyphens`], JSON.stringify(name));
+      // Nothing in a name starts a line of its own.
+      assert.ok(!run.stdout.split('\n').some((line) => line.startsWith('beta: pinned 7 days ago')), JSON.stringify(name));
+    }
+  });
+
+  it('fails an entry without a name, and prints the keys it holds besides the allowed ones on one line', () => {
+    const { w } = moved(30);
+    const file = JSON.parse(pins(w.first));
+    delete file.plugins[0].name;
+    file['evil\nalpha: fine'] = true;
+    w.commit({ '.claude-plugin/marketplace.json': `${JSON.stringify(file, null, 2)}\n` }, 'Drop a name');
+    const run = w.check();
+    assert.equal(run.status, 1, output(run));
+    contains(run.stdout, '(an entry without a name): has no name');
+    contains(run.stdout, 'holds "evil\\nalpha: fine" besides name, owner, description, plugins');
+    assert.ok(!run.stdout.split('\n').some((line) => line.startsWith('alpha: fine')));
   });
 
   describe('a pull request that moves a pin', () => {
@@ -473,6 +504,143 @@ describe('the pin check on a pull request', () => {
       const run = w.check();
       assert.equal(run.status, 0, output(run));
       lacks(run.stdout, 'changes only');
+    });
+  });
+
+  describe('with --head, as the pin-from-main check runs it', () => {
+    // main after a commit merged 30 days ago and one merged 2 days ago, and two pull requests from it, one pinning each:
+    // `good` and `bad` are their heads, `old` and `young` the commits they pin.
+    const twoPulls = () => {
+      const w = world();
+      const old = w.land({ ...w.manifests({ alpha: '1.1.0' }), 'plugins/alpha/skills/one/SKILL.md': 'old' }, 'Change alpha');
+      const young = w.land({ ...w.manifests({ alpha: '1.2.0' }), 'plugins/alpha/skills/one/SKILL.md': 'young' }, 'Change alpha again');
+      w.merged(old, 30);
+      w.merged(young, 2);
+      const heads = {};
+      for (const [name, sha] of [['good', old], ['bad', young]]) {
+        w.here('switch', '-q', '-c', name, 'main');
+        heads[name] = w.commit({ '.claude-plugin/marketplace.json': pins(sha) }, `Pin ${name}`);
+      }
+      return { w, old, young, ...heads };
+    };
+
+    it('reads the commit it is given, not the working tree: a bad pin in the tree and a good one in the head passes', () => {
+      const { w, good, bad } = twoPulls();
+      w.here('switch', '-q', 'bad');
+      let run = w.run(['check', '--head', good]);
+      assert.equal(run.status, 0, output(run));
+      contains(run.stdout, 'pull request #5 merged');
+      // Without --head the working tree is read, as before.
+      assert.equal(w.check().status, 1);
+      run = w.run(['check', '--head', bad]);
+      assert.equal(run.status, 1, output(run));
+      contains(run.stdout, 'less than 7 days ago');
+    });
+
+    it('reads the commit it is given, not the working tree: a good pin in the tree and a bad one in the head fails', () => {
+      const { w, good, bad, young } = twoPulls();
+      w.here('switch', '-q', 'good');
+      const run = w.run(['check', '--head', bad]);
+      assert.equal(run.status, 1, output(run));
+      contains(run.stdout, `alpha: ${young.slice(0, 7)}: pull request #5 merged`);
+      assert.equal(w.check().status, 0);
+      // An edit of the working tree that is not committed is not read either.
+      writeFileSync(join(w.work, '.claude-plugin/marketplace.json'), pins(young));
+      assert.equal(w.check().status, 1);
+      const unchanged = w.run(['check', '--head', good]);
+      assert.equal(unchanged.status, 0, output(unchanged));
+    });
+
+    it("lists the files the head changes against the base, not the working tree's", () => {
+      const { w } = moved(30);
+      const head = w.commit({ 'plugins/alpha/skills/one/SKILL.md': 'changed too' }, 'Slip it in');
+      w.here('switch', '-q', 'main');
+      const run = w.run(['check', '--head', head]);
+      assert.equal(run.status, 1, output(run));
+      contains(run.stdout, 'this one also changes "plugins/alpha/skills/one/SKILL.md"');
+    });
+
+    it("is not weakened by a head that edits the check to pass and moves the pin to a commit that hasn't waited", () => {
+      const { w, sha } = moved(2);
+      const weakened = w.commit({ 'tests/pin.mjs': 'process.exit(0);\n' }, 'Weaken the check');
+      // The head's own copy of the check passes it, which is what ci.yml would run on a pull request...
+      const own = spawnSync('node', ['tests/pin.mjs', 'check'], { cwd: w.work, encoding: 'utf8' });
+      assert.equal(own.status, 0, own.stderr);
+      // ...and main's copy, run from a checkout of the base with the head as data, doesn't.
+      w.here('switch', '-q', 'main');
+      assert.equal(existsSync(join(w.work, 'tests/pin.mjs')), false);
+      const run = w.run(['check', '--head', weakened]);
+      assert.equal(run.status, 1, output(run));
+      contains(run.stdout, `alpha: ${sha.slice(0, 7)}: pull request #5 merged`);
+      contains(run.stdout, 'less than 7 days ago');
+      contains(run.stdout, 'this one also changes "tests/pin.mjs"');
+      // Nothing of the head was written to the tree.
+      assert.equal(existsSync(join(w.work, 'tests/pin.mjs')), false);
+      assert.equal(w.here('status', '--porcelain'), '');
+    });
+
+    it('needs a full lowercase hash of a commit in the checkout that holds the marketplace file', () => {
+      const { w } = moved(30);
+      const hash = 'a'.repeat(40);
+      for (const args of [['--head'], ['--head', 'HEAD'], ['--head', 'change'], ['--head', hash.slice(0, 7)], ['--head', '--help'], ['--head', hash.toUpperCase()], ['--head', hash, '--head', hash]]) {
+        const run = w.run(['check', ...args]);
+        assert.equal(run.status, 1, args.join(' '));
+        contains(run.stderr, 'Usage: node tests/pin.mjs check');
+      }
+      let run = w.run(['check', '--head', hash]);
+      assert.equal(run.status, 1, output(run));
+      contains(run.stderr, 'is not a commit in this checkout');
+      run = w.run(['check', '--head', w.first]);
+      assert.equal(run.status, 1, output(run));
+      contains(run.stderr, `.claude-plugin/marketplace.json can't be read at ${w.first.slice(0, 7)}`);
+    });
+  });
+
+  describe('looks BASE up once, as the commit it names', () => {
+    // A tag called origin/main at the commit that holds the moved pin: `origin/main` names the tag, `refs/remotes/origin/main`
+    // the branch, and CI gives the full name.
+    const shadowed = () => {
+      const { w, sha } = moved(2);
+      const head = w.here('rev-parse', 'HEAD');
+      w.here('tag', 'origin/main', head);
+      return { w, sha, head };
+    };
+
+    it('still sees the move when a tag is called like the base branch, given its full name', () => {
+      const { w, sha, head } = shadowed();
+      // The short name does name the tag here, which is why CI gives the full name.
+      assert.equal(w.here('rev-parse', 'origin/main'), head);
+      assert.notEqual(w.here('rev-parse', 'refs/remotes/origin/main'), head);
+      const run = w.check({ BASE: 'refs/remotes/origin/main' });
+      assert.equal(run.status, 1, output(run));
+      contains(run.stdout, `alpha: the pin moves from ${w.first.slice(0, 7)} to ${sha.slice(0, 7)}`);
+      contains(run.stdout, 'less than 7 days ago');
+      // The pin it is judged against is the base branch's own, so the pin is a commit of it, and its versions compare.
+      lacks(run.stdout, 'is not a commit of');
+    });
+
+    it('judges against the commit it found, and names BASE as it was given', () => {
+      const w = world({ relative: true });
+      const older = w.land({ ...w.manifests({ alpha: '0.9.0' }), 'plugins/alpha/skills/one/SKILL.md': 'older' }, 'Older alpha');
+      w.land(w.manifests({ alpha: '1.2.0' }), 'Newer alpha');
+      w.merged(older, 30);
+      w.pull(pins(older));
+      w.here('tag', 'origin/main', w.here('rev-parse', 'HEAD'));
+      const run = w.check({ BASE: 'refs/remotes/origin/main' });
+      assert.equal(run.status, 1, output(run));
+      contains(run.stdout, 'alpha: its version goes down, from 1.2.0 on refs/remotes/origin/main to 0.9.0 at');
+    });
+
+    it('takes a commit hash as BASE, as after a merge, and fails a name that is no commit, or looks like an option', () => {
+      const { w } = moved(30);
+      const base = w.here('rev-parse', 'refs/remotes/origin/main');
+      assert.equal(w.check({ BASE: base }).status, 0);
+      for (const name of ['--help', '--output=x', '-n', 'refs/remotes/origin/nothing', base.slice(0, 7).replace(/[0-9a-f]/g, 'z')]) {
+        const run = w.check({ BASE: name });
+        assert.equal(run.status, 1, name);
+        contains(run.stderr, `${name} can't be found`);
+      }
+      assert.equal(existsSync(join(w.work, 'x')), false);
     });
   });
 
@@ -546,6 +714,19 @@ describe('the pin check after a merge', () => {
     assert.equal(w.log(), '');
     // The same pin does not pass as a pull request would.
     assert.equal(w.run(['check'], { BASE: before }).status, 1);
+  });
+
+  it('reads the commit it is given with --head, with the arguments in either order', () => {
+    const { w, before } = merged(2);
+    const head = w.here('rev-parse', 'HEAD');
+    // The working tree is main before the pin moved: it alone shows no move.
+    w.here('switch', '-q', '-c', 'earlier', before);
+    contains(after(w, before).stdout, 'The pins are unchanged.');
+    for (const args of [['--after-merge', '--head', head], ['--head', head, '--after-merge']]) {
+      const run = w.run(['check', ...args], { BASE: before });
+      assert.equal(run.status, 0, output(run));
+      contains(run.stdout, 'its age is not checked after the merge');
+    }
   });
 
   it('writes the pin change to the job summary', () => {
@@ -632,21 +813,29 @@ describe('moving the pin', () => {
   };
   const move = (w, args = [], env = {}) => w.run(['move', '--dry-run', ...args], env);
 
-  it('refuses unless main requires pull requests, the packages check up to date, no force pushes, and holds administrators', () => {
+  it('refuses unless main requires pull requests, the packages and pin-from-main checks up to date, no force pushes, and holds administrators', () => {
     const { w } = history();
     const good = allowed.protection;
+    const both = ['packages', 'pin-from-main'];
     const cases = [
       [{ ...good, required_pull_request_reviews: undefined }, 'pull requests are not required'],
-      [{ ...good, required_status_checks: { strict: true, contexts: ['lint'], checks: [{ context: 'lint', app_id: 15368 }] } }, 'the "packages" check is not required'],
+      [{ ...good, required_status_checks: requiring(['lint']) }, 'the "packages" check is not required'],
+      [{ ...good, required_status_checks: requiring(['lint']) }, 'the "pin-from-main" check is not required'],
       [{ ...good, required_status_checks: undefined }, 'the "packages" check is not required'],
+      [{ ...good, required_status_checks: undefined }, 'the "pin-from-main" check is not required'],
+      // main's copy of the check is required as well as the pull request's own: one of them is not enough.
+      [{ ...good, required_status_checks: requiring(['packages']) }, 'the "pin-from-main" check is not required'],
+      [{ ...good, required_status_checks: requiring(['pin-from-main']) }, 'the "packages" check is not required'],
       [{ ...good, allow_force_pushes: { enabled: true } }, 'force pushes to main are allowed'],
       [{ ...good, allow_force_pushes: undefined }, 'force pushes to main are allowed'],
-      [{ ...good, required_status_checks: { contexts: ['packages'], checks: [{ context: 'packages', app_id: 15368 }] } }, 'a pull request is not required to be up to date with main'],
-      [{ ...good, required_status_checks: { strict: false, contexts: ['packages'], checks: [{ context: 'packages', app_id: 15368 }] } }, 'a pull request is not required to be up to date with main'],
+      [{ ...good, required_status_checks: { contexts: both, checks: requiring(both).checks } }, 'a pull request is not required to be up to date with main'],
+      [{ ...good, required_status_checks: { ...requiring(both), strict: false } }, 'a pull request is not required to be up to date with main'],
       // Named, but not tied to GitHub Actions: another app could report it. (-1 is how GitHub says "any app".)
-      [{ ...good, required_status_checks: { strict: true, contexts: ['packages'], checks: [{ context: 'packages', app_id: 1 }] } }, 'the "packages" check is not tied to the GitHub Actions app (15368)'],
-      [{ ...good, required_status_checks: { strict: true, contexts: ['packages'], checks: [{ context: 'packages', app_id: -1 }] } }, 'the "packages" check is not tied to the GitHub Actions app (15368)'],
-      [{ ...good, required_status_checks: { strict: true, contexts: ['packages'] } }, 'the "packages" check is not tied to the GitHub Actions app (15368)'],
+      [{ ...good, required_status_checks: requiring(both, 1) }, 'the "packages" check is not tied to the GitHub Actions app (15368)'],
+      [{ ...good, required_status_checks: requiring(both, 1) }, 'the "pin-from-main" check is not tied to the GitHub Actions app (15368)'],
+      [{ ...good, required_status_checks: requiring(both, -1) }, 'the "pin-from-main" check is not tied to the GitHub Actions app (15368)'],
+      [{ ...good, required_status_checks: { strict: true, contexts: both } }, 'the "pin-from-main" check is not tied to the GitHub Actions app (15368)'],
+      [{ ...good, required_status_checks: { ...requiring(both), checks: [{ context: 'packages', app_id: 15368 }, { context: 'pin-from-main', app_id: 1 }] } }, 'the "pin-from-main" check is not tied to the GitHub Actions app (15368)'],
       [{ ...good, required_pull_request_reviews: { bypass_pull_request_allowances: { users: [{ login: 'someone' }], teams: [], apps: [] } } }, 'some users, teams or apps may bypass the pull request requirement on main'],
       [{ ...good, required_pull_request_reviews: { bypass_pull_request_allowances: { users: [], teams: [], apps: [{ slug: 'some-app' }] } } }, 'some users, teams or apps may bypass the pull request requirement on main'],
       [{ ...good, enforce_admins: { enabled: false } }, 'administrators are not held to the protection of main'],
@@ -655,19 +844,24 @@ describe('moving the pin', () => {
     for (const [protection, problem] of cases) {
       w.protection(protection);
       const run = move(w);
-      assert.equal(run.status, 1, output(run));
+      assert.equal(run.status, 1, `${problem}: ${output(run)}`);
       contains(run.stderr, `- ${problem}`);
       contains(run.stderr, 'main is protected');
     }
+    // The protection that held before pin-from-main existed no longer does.
+    w.protection({ ...good, required_status_checks: requiring(['packages']) });
+    const before = move(w);
+    assert.equal(before.status, 1, output(before));
+    lacks(before.stderr, 'the "packages"');
     w.protection({ ...good, required_pull_request_reviews: undefined, allow_force_pushes: { enabled: true } });
-    const both = move(w);
-    contains(both.stderr, 'pull requests are not required');
-    contains(both.stderr, 'force pushes to main are allowed');
+    const many = move(w);
+    contains(many.stderr, 'pull requests are not required');
+    contains(many.stderr, 'force pushes to main are allowed');
   });
 
-  it('takes the packages check from the checks list, and empty bypass allowances, and refuses when protection is unreadable', () => {
+  it('takes the required checks from the checks list, and empty bypass allowances, and refuses when protection is unreadable', () => {
     const { w } = history();
-    w.protection({ ...allowed.protection, required_status_checks: { strict: true, checks: [{ context: 'packages', app_id: 15368 }] } });
+    w.protection({ ...allowed.protection, required_status_checks: { strict: true, checks: requiring(['packages', 'pin-from-main']).checks } });
     assert.equal(move(w).status, 0);
     w.protection({ ...allowed.protection, required_pull_request_reviews: { bypass_pull_request_allowances: { users: [], teams: [], apps: [] } } });
     assert.equal(move(w).status, 0);
@@ -981,7 +1175,7 @@ describe('moving the pin', () => {
     w.land({ '.claude-plugin/marketplace.json': `${JSON.stringify(file, null, 2)}\n` }, 'Add hooks');
     const run = move(w);
     assert.equal(run.status, 1);
-    contains(run.stderr, 'beta: holds hooks besides name, description, source');
+    contains(run.stderr, 'beta: holds "hooks" besides name, description, source');
   });
 });
 
@@ -1106,10 +1300,116 @@ describe('the workflows', () => {
     contains(ci, 'types: [opened, synchronize, reopened, edited]');
     contains(ci, '    concurrency:\n      group: packages-${{ github.event.pull_request.number || github.sha }}\n      cancel-in-progress: true\n');
     contains(ci, "pull request's own copy of tests/pin.mjs");
+    contains(ci, 'the pin-from-main check (pin-from-main.yml) runs main');
     contains(ci, 'PR_NUMBER: ${{ github.event.pull_request.number }}');
-    contains(ci, 'run: node tests/pin.mjs check\n');
+    contains(ci, 'BASE: refs/remotes/origin/${{ github.base_ref }}\n          PR_NUMBER: ${{ github.event.pull_request.number }}\n          GH_TOKEN: ${{ github.token }}\n        run: node tests/pin.mjs check\n');
+    contains(ci, 'could report a check of that name itself');
     contains(ci, "github.event.before != '0000000000000000000000000000000000000000'");
     contains(ci, 'BASE: ${{ github.event.before }}\n        run: node tests/pin.mjs check --after-merge');
+  });
+});
+
+describe('the pin-from-main workflow', () => {
+  const workflow = read('.github/workflows/pin-from-main.yml');
+  const ci = read('.github/workflows/ci.yml');
+  const lines = workflow.split('\n');
+  const indent = (line) => line.length - line.trimStart().length;
+  // What each step's `run:` holds, as the trimmed lines of its script (not `defaults: run:`, which holds the shell).
+  const scripts = lines.flatMap((line, i) => {
+    const match = /^\s*(?:- )?run:\s*(\S.*)?$/.exec(line);
+    if (!match || indent(line) < 8) return [];
+    if (match[1] && !/^[|>]/.test(match[1])) return [[match[1]]];
+    const key = indent(line) + (line.trimStart().startsWith('- ') ? 2 : 0);
+    const end = lines.findIndex((next, j) => j > i && next.trim() && indent(next) <= key);
+    return [lines.slice(i + 1, end === -1 ? undefined : end).map((next) => next.trim()).filter(Boolean)];
+  });
+
+  it('runs on pull_request_target with a read-only token, under the job name that main will require', () => {
+    contains(workflow, 'on:\n  pull_request_target:\n');
+    contains(workflow, 'types: [opened, synchronize, reopened, edited]\n    branches: [main]\n');
+    assert.doesNotMatch(workflow, /^\s*pull_request:|^\s*push:/m);
+    contains(workflow, 'permissions:\n  contents: read\n  pull-requests: read\n\n');
+    assert.doesNotMatch(workflow, /:\s*write\b/);
+    contains(workflow, '\njobs:\n  pin-from-main:\n    runs-on: ubuntu-24.04\n');
+    // It is the only job.
+    assert.deepEqual(lines.slice(lines.indexOf('jobs:') + 1).filter((line) => /^ {2}[\w-]+:$/.test(line)), ['  pin-from-main:']);
+  });
+
+  it('uses the same pinned actions and Node version as ci.yml', () => {
+    const uses = workflow.match(/uses: \S+ # v[\d.]+/g);
+    assert.deepEqual(uses.map((line) => line.split('@')[0]), ['uses: actions/checkout', 'uses: actions/setup-node']);
+    for (const line of uses) contains(ci, line);
+    contains(workflow, 'node-version: 24.21.0');
+    contains(ci, 'node-version: 24.21.0');
+  });
+
+  it("checks out the base branch only, and never the pull request's head", () => {
+    // One checkout, with nothing to point it elsewhere: its ref is the default of this event, the base branch.
+    assert.equal(workflow.match(/actions\/checkout@/g).length, 1);
+    assert.match(workflow, /actions\/checkout@\S+ # v[\d.]+\n {8}with:\n {10}persist-credentials: false\n {10}fetch-depth: 0\n {6}- /);
+    assert.doesNotMatch(workflow, /^\s*(?:- )?(?:ref|repository|path|token|ssh-key):/m);
+    // The head's hash is named once, through env:, to be compared with what was fetched; nothing names its branch,
+    // its repository or the merge ref.
+    assert.deepEqual(workflow.match(/^.*pull_request\.head.*$/gm).map((line) => line.trim()), [
+      'group: pin-from-main-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}',
+      'EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}',
+    ]);
+    assert.doesNotMatch(workflow, /head\.ref|head_ref|head\.repo|\/merge\b/);
+    // Fetched as objects, never switched to, merged or unpacked.
+    contains(workflow, 'git fetch --no-tags --no-recurse-submodules origin "refs/pull/${PR_NUMBER}/head"');
+    contains(workflow, 'fetched=$(git rev-parse --verify "FETCH_HEAD^{commit}")');
+    contains(workflow, 'if [ "$fetched" != "$EVENT_HEAD_SHA" ]; then');
+    assert.doesNotMatch(workflow, /git (?:checkout|switch|merge|pull|reset|restore|worktree|archive|submodule|clean|apply|am|cherry-pick|rebase)\b/);
+  });
+
+  it("puts no event value inside a script, and runs only main's check and the fetch", () => {
+    assert.equal(scripts.length, 2);
+    for (const line of scripts.flat()) assert.ok(!line.includes('${{'), line);
+    // The only expressions in the file, outside comments, are the ones that hand a value to env: or name the run group.
+    assert.deepEqual(
+      lines.filter((line) => !line.trim().startsWith('#') && line.includes('${{')).map((line) => line.trim()),
+      [
+        'group: pin-from-main-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}',
+        'PR_NUMBER: ${{ github.event.pull_request.number }}',
+        'EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}',
+        'BASE: refs/remotes/origin/${{ github.base_ref }}',
+        'PR_NUMBER: ${{ github.event.pull_request.number }}',
+        'GH_TOKEN: ${{ github.token }}',
+        'HEAD_SHA: ${{ steps.head.outputs.sha }}',
+      ],
+    );
+    const commands = scripts.flat();
+    assert.deepEqual(commands.filter((line) => line.startsWith('node ')), ['node tests/pin.mjs check --head "$HEAD_SHA"']);
+    // The only git commands are the fetch and reading what it fetched.
+    const subcommands = commands.flatMap((line) => [...line.matchAll(/\bgit (\S+)/g)].map((found) => found[1]));
+    assert.deepEqual(subcommands, ['fetch', 'rev-parse']);
+    assert.doesNotMatch(commands.join('\n'), /\b(?:npm|npx|yarn|pnpm|pip|python3?|curl|wget|make|eval|source)\b/);
+  });
+
+  it('runs the check with the base, the pull request number, the token and the head it fetched', () => {
+    contains(workflow, 'BASE: refs/remotes/origin/${{ github.base_ref }}\n          PR_NUMBER: ${{ github.event.pull_request.number }}\n          GH_TOKEN: ${{ github.token }}\n          HEAD_SHA: ${{ steps.head.outputs.sha }}\n        run: node tests/pin.mjs check --head "$HEAD_SHA"\n');
+    contains(workflow, 'echo "sha=$fetched" >> "$GITHUB_OUTPUT"');
+    contains(workflow, '        id: head\n');
+  });
+
+  it("is the only workflow that defines the job pin-from-main, and ci.yml the only one that defines packages", () => {
+    // GitHub matches a required check by its name, so a second job or step of either name would be a second way to report it.
+    const owners = { 'pin-from-main': '.github/workflows/pin-from-main.yml', packages: '.github/workflows/ci.yml' };
+    const files = readdirSync(join(root, '.github/workflows')).filter((file) => /\.ya?ml$/.test(file));
+    assert.ok(files.includes('pin-from-main.yml') && files.includes('ci.yml') && files.includes('guarded.yml'));
+    const defined = { 'pin-from-main': [], packages: [] };
+    for (const file of files) {
+      const text = read(`.github/workflows/${file}`);
+      const rows = text.split('\n');
+      // A job id is a key of `jobs:`, two spaces in.
+      const jobs = rows.slice(rows.indexOf('jobs:') + 1).flatMap((line) => /^ {2}([\w-]+):\s*$/.exec(line)?.[1] ?? []);
+      for (const name of Object.keys(defined)) {
+        if (jobs.includes(name)) defined[name].push(`.github/workflows/${file}`);
+        // A `name:` of a job or a step (the workflow's own, at the left edge, is not a check).
+        assert.doesNotMatch(text, new RegExp(`^[ \\t]+(?:- )?name:[ \\t]*["']?${name}["']?[ \\t]*$`, 'm'), `${file} names a job or step ${name}`);
+      }
+    }
+    assert.deepEqual(defined, Object.fromEntries(Object.entries(owners).map(([name, file]) => [name, [file]])));
   });
 });
 

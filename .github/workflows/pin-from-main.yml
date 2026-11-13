@@ -1,0 +1,73 @@
+name: pin-from-main
+
+# The pin check of main, run on a pull request's files. On pull_request, ci.yml runs the pull request's own tests/pin.mjs
+# and ci.yml, so a pull request that moves the pin and also weakens the check would pass its own check. This workflow runs
+# on pull_request_target, which uses the workflow file and the code of the base branch, so the check that judges a pull
+# request is the one already merged: a change to the check takes effect for the pull requests after it merges, and is
+# reviewed as a guarded file before that.
+#
+# What this does not settle: GitHub matches a required check by its name, so a pull request that adds or changes a
+# workflow could report a check called pin-from-main itself. Whether that can satisfy the requirement is being tested;
+# until then such a pull request (a guarded file) is held by the maintainer's review, not by this check.
+#
+# Why pull_request_target is safe here: it checks out the base branch only (the default for this event), never the pull
+# request's head, and installs and runs nothing from it. The head is fetched as git objects (refs/pull/<number>/head) and
+# read as data by `node tests/pin.mjs check --head <sha>` with git show and git diff; none of its files is checked out,
+# imported or executed. The token is read-only (contents and pull requests). Event values reach the scripts through env:
+# only, never inside a run: script.
+#
+# The job name is the status context that main requires: keep it as it is.
+on:
+  pull_request_target:
+    # edited: the description holds the Urgent line, and the check reads it as it is now.
+    types: [opened, synchronize, reopened, edited]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  pin-from-main:
+    runs-on: ubuntu-24.04
+    # A newer run for the same pull request and head (an edit of its description) replaces the one before it. A push has a
+    # head of its own, so its run is not cancelled by one for the head before it, and a run for an older head stops itself.
+    concurrency:
+      group: pin-from-main-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
+      # The pull request's head, fetched and not checked out. It must be the commit the event is about: a push since then
+      # starts a new run, and this one stops rather than judge another commit.
+      - name: Fetch the pull request's head as data
+        id: head
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags --no-recurse-submodules origin "refs/pull/${PR_NUMBER}/head"
+          fetched=$(git rev-parse --verify "FETCH_HEAD^{commit}")
+          if [ "$fetched" != "$EVENT_HEAD_SHA" ]; then
+            echo "The head of the pull request is $fetched, not $EVENT_HEAD_SHA: it was pushed to since this run started."
+            exit 1
+          fi
+          echo "sha=$fetched" >> "$GITHUB_OUTPUT"
+      # main's tests/pin.mjs, in the base checkout. The pull request's description is read through the API when it runs.
+      # BASE is the full name of the remote-tracking branch, which a tag called origin/main can't stand in for.
+      - name: The pin moves only to a commit that has waited
+        env:
+          BASE: refs/remotes/origin/${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.head.outputs.sha }}
+        run: node tests/pin.mjs check --head "$HEAD_SHA"
