@@ -33,6 +33,9 @@ Facts are kept small: one topic each, within 4,000 characters, a long text split
   3. Add an overview fact: what the whole is about, then one line per part, each linking straight to the part.
   4. To split a fact that is already too long, or one an update would take past 4,000 characters, it becomes the
      overview, keeping its id (or its file), and the parts are new facts. What it said moves into the parts whole, and the addition into the right part.
+  5. A fact that is itself a part (its `partOf` names an overview) can't have parts. Split it into sibling parts
+     instead: it keeps one part of its text under its id, the rest moves whole into new parts, and its overview gets a
+     line and a `parts` id for each new part.
 - Tag what the fact is about (a client, a system, a project) with up to 5 tags from the brief's list: those without a
   `section`, and those of the section you save to, most used first. Reuse before anything new.
 - Only when no tag fits, propose one new tag in `newTags`: `{id, about}`, an id a colleague would use for that client,
@@ -83,7 +86,7 @@ A fact for the project's section, when the project keeps a bundle, is a file. An
   bundle.
 - If it is refused, act on the message: `conflict` means read the fact again and redo step 3; an unknown tag names the
   nearest known ones; an unknown link names the link to fix; a secret means take it out; `too-long` means split the
-  fact as in step 2; `retire-changes-fact` means retire it with its text and tags left out; `bad-part` names the part to leave out or fix;
+  fact as in step 2; `retire-changes-fact` means retire it with its text and tags left out; `bad-part` names the part to leave out or fix (when it names the fact you are splitting, that fact is itself a part: split it into sibling parts as in step 2);
   `about` refused means pick an id from the brief's `parties`, or save another client's knowledge in its own section;
   `near-tag` names the tag the new one is the same as or near: use it, or, only if the person says the new one means
   something else, save again with it in the new tag's `distinctFrom`; `not-a-tag` means pick an id for what the fact is about;
