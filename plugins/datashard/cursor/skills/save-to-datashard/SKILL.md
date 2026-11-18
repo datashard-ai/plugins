@@ -15,7 +15,8 @@ Facts are kept small: one topic each, within 4,000 characters, a long text split
 - Keep the terms you searched with; the score asks for them.
 - With a bundle, also search its files: they may hold changes not imported yet.
 - Read the closest facts. If one already covers the topic, update it rather than add a new one. A short addition
-  goes into that fact when the result stays within 4,000 characters.
+  goes into that fact when the result stays within 4,000 characters. When it would not, split as in step 2: never
+  shorten or drop what the fact already says to make room.
 - If what you would save contradicts a fact, tell the person before anything else, quoting the fact and its owner.
 
 ## 2. Write the fact
@@ -29,8 +30,8 @@ Facts are kept small: one topic each, within 4,000 characters, a long text split
   2. Each part's title and first line name its subject ("Acme webhook: retries", not "Retries"), so it is understood
      on its own.
   3. Add an overview fact: what the whole is about, then one line per part, each linking straight to the part.
-  4. To split a fact that is already too long, it becomes the overview, keeping its id (or its file), and the parts
-     are new facts.
+  4. To split a fact that is already too long, or one an update would take past 4,000 characters, it becomes the
+     overview, keeping its id (or its file), and the parts are new facts. What it said moves into the parts whole.
 - Tag what the fact is about (a client, a system, a project) with up to 5 tags from the brief's list: those without a
   `section`, and those of the section you save to, most used first. Reuse before anything new.
 - Only when no tag fits, propose one new tag in `newTags`: `{id, about}`, an id a colleague would use for that client,
