@@ -75,7 +75,9 @@ A fact for the project's section, when the project keeps a bundle, is a file. An
   the check for repeated facts would refuse them), then the overview with the parts' ids (`save` refuses a link to a fact
   that does not exist yet, and does not check an overview for repeats). Pass the same ids as the overview's `parts`, so
   search returns the family once and each part carries the overview's title. Parts are in the overview's section; a part
-  of another overview, or an overview itself, is refused (`bad-part` names it).
+  of another overview, or an overview itself, is refused (`bad-part` names it). In a sibling split, save the new parts,
+  then the shortened part, then the overview, so what moves out of a fact is saved before the fact loses it. If a split
+  stops partway, the parts already saved stay: on the retry update them by their ids, never save them again.
 - Update: also pass the fact's `id` and the `version` you read. Retire: also pass `status: deprecated`, and leave out
   the title, description, body and tags, which are kept as they are; put the reason or the replacement in a fact that
   links to it.
