@@ -1,7 +1,7 @@
 {
   "name": "datashard",
-  "version": "0.30.4",
-  "description": "Datashard, the company's knowledge base of verified facts, in Codex: the install's MCP server, the save skill, and $datashard-init to set up a project.",
+  "version": "0.31.0",
+  "description": "Datashard, the company's knowledge base of verified facts, in Codex: the install's MCP server, the save skill, $record-with-gh0stwriter to record a call where gh0stwriter is installed, and $datashard-init to set up a project.",
   "author": {
     "name": "Xibit Digital",
     "url": "https://github.com/datashard-ai"

@@ -648,6 +648,32 @@ describe('/datashard:review-with-datashard', () => {
   });
 });
 
+describe('/datashard:record-with-gh0stwriter', () => {
+  const skill = read(join(plugin, 'skills/record-with-gh0stwriter/SKILL.md'));
+  it('is the same skill for Claude, Codex and Cursor', () => {
+    for (const dir of ['codex/skills', 'cursor/skills'])
+      assert.equal(read(join(plugin, dir, 'record-with-gh0stwriter/SKILL.md')), skill);
+  });
+  it('is named for its folder', () => assert.match(skill, /^---\nname: record-with-gh0stwriter$/m));
+  it('runs only where gh0stwriter is installed, and never installs it', () => {
+    contains(skill, 'command -v gh0stwriter');
+    contains(skill, 'https://raw.githubusercontent.com/datashard-ai/gh0stwriter/main/install.sh');
+    contains(skill, 'Never install it yourself');
+  });
+  it('has the person tell everyone on the call before it records', () => {
+    contains(skill, 'Tell everyone on the call that it is being recorded.');
+    contains(skill, "For a client's call, the client must agree first.");
+    assert.ok(skill.indexOf('Tell everyone on the call') < skill.indexOf('gh0stwriter record'));
+  });
+  it('keeps the transcript out of the session and out of Datashard', () => {
+    contains(skill, 'gh0stwriter stop --quiet');
+    assert.doesNotMatch(skill, /gh0stwriter stop(?! --quiet)(?!`)/);
+    contains(skill, 'never save it');
+  });
+  it('never prints the config file that holds the API key', () => contains(skill, 'never print'));
+  it('names no decision number and no private folder', () => assert.doesNotMatch(skill, /ADR|\/Users\/|xbt/));
+});
+
 describe('the memory sections of DATASHARD.md', () => {
   const section = (heading) => template.match(new RegExp(`^## ${heading}\\n[\\s\\S]*?(?=^## |(?![\\s\\S]))`, 'm'))?.[0];
   const codexInit = read(join(plugin, 'codex/skills/datashard-init/SKILL.md'));
@@ -689,6 +715,13 @@ describe('the memory sections of DATASHARD.md', () => {
       contains(skill, '`Darwin arm64`');
     }
     contains(read(join(plugin, 'README.md')), installer);
+  });
+
+  it('keeps a gh0stwriter section only where gh0stwriter is installed', () => {
+    contains(template, '## gh0stwriter');
+    contains(template, 'Tell everyone on the call that it is being recorded.');
+    for (const f of ['skills/init/SKILL.md', 'codex/skills/datashard-init/SKILL.md', 'cursor/skills/datashard-init/SKILL.md'])
+      contains(read(join(plugin, f)), 'command -v gh0stwriter', f);
   });
 });
 

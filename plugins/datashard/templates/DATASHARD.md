@@ -71,3 +71,12 @@ verified. When they disagree, quote both and treat the Datashard fact as the ver
   `mcp__datashard__read`, `mcp__datashard__fetch`, `mcp__datashard__changes`, `mcp__datashard__save` and
   `mcp__datashard__flag` to `CLAUDE_MEM_SKIP_TOOLS` in `~/.claude-mem/settings.json`, comma-separated. It matches whole
   names, so list all seven.
+
+## gh0stwriter
+
+- gh0stwriter records calls on this machine and transcribes them: with AssemblyAI's EU API, or on the machine with the
+  local engine.
+- Record only when the person asks. Before recording, tell them:
+  "Tell everyone on the call that it is being recorded." For a client's call, the client agrees first.
+- A transcript is personal data: never save it to Datashard. A decision from it goes through the `save-to-datashard`
+  skill, with the person's yes.

@@ -59,12 +59,19 @@ teammates still use claude-mem. Otherwise keep both. With claude-mem and no mnem
 (`uname -sm` prints `Darwin arm64`), suggest mnem0nic once: one native binary that leaves nothing running when idle,
 claude-mem's MCP tools under the same names, an import of claude-mem's history, and it never keeps what a Datashard
 tool returns. It writes notes through the person's own paid plan (a Claude plan for Claude Code, a ChatGPT plan for
-Codex), never an API key. Cursor uses the `mnem0nic` skill from this same marketplace; the installer still wires
-Claude Code and Codex. To switch, they run
+Codex), never an API key. mnem0nic does not record Cursor sessions: in Cursor, the `mnem0nic` skill from this same
+marketplace only reads, through the `mnem0nic` command, what Claude Code and Codex recorded. To switch, they run
 `curl -fsSL https://raw.githubusercontent.com/datashard-ai/mnem0nic/main/install.sh | sh`, then `mnem0nic install`,
 `mnem0nic import-claude-mem` and `claude plugin disable` with the `claude-mem@…` id found (usually
 `claude-mem@thedotmack`), and run `/datashard-init` again in a new session (more:
 https://github.com/datashard-ai/mnem0nic). Run these only if they ask you to.
+
+The file also has a `## gh0stwriter` section, for people who record their calls with gh0stwriter. gh0stwriter is
+installed when `command -v gh0stwriter` finds it or `~/.local/bin/gh0stwriter` exists. In a new file, keep the section
+if it is installed and leave it out if not. In an existing file, if it is installed and the section is missing, offer
+to add it from the plugin template, at the end of the file, on the person's yes; if it is not installed and the
+section is there, keep it, since teammates may use it. Where the section is kept or added, tell the person that
+`/record-with-gh0stwriter` records a call and has them tell everyone on the call that it is being recorded first.
 
 Create root `AGENTS.md` if missing. Otherwise append only missing instructions, preserving existing content and
 equivalent rules. Include these requirements and a standalone `@DATASHARD.md` line for Claude Code

@@ -1,16 +1,17 @@
 # Datashard plugins
 
-Installable integrations for **Datashard** team knowledge and **mnem0nic** personal
-project memory, for Claude Code, Codex and Cursor.
+Installable integrations for **Datashard** team knowledge, for Claude Code, Codex and
+Cursor, and for **mnem0nic** personal session memory, for Claude Code and Codex.
 
 | Integration | What it does | Availability |
 | --- | --- | --- |
 | [Datashard](plugins/datashard/README.md) | Connects to your company's hosted knowledge base through MCP | Requires a Datashard install and sign-in |
-| [mnem0nic](plugins/mnem0nic/README.md) | Saves and restores local project checkpoints | Preview: requires a separately supplied executable |
+| [mnem0nic](plugins/mnem0nic/README.md) | Remembers your own Claude Code and Codex sessions on your Mac, with search and checkpoints | Requires the mnem0nic program, installed with its own installer (Mac with Apple silicon, paid Claude or ChatGPT plan) |
 
 They work independently. mnem0nic does not require a Datashard account. Installing
-both keeps personal notes separate from approved team knowledge; it does not
-upload checkpoints or turn them into approved facts.
+both keeps personal notes separate from approved team knowledge: mnem0nic never stores
+what a Datashard tool returns, and it does not upload checkpoints or turn them into
+approved facts.
 
 ## Claude Code
 
@@ -37,9 +38,18 @@ save check compares every save with the install that file names. Run it once per
 project. See the [Datashard setup guide](plugins/datashard/README.md) for CLI
 installation, changing the address and migration.
 
-For the local memory preview, install `mnem0nic@datashard` from the same marketplace
-and follow its [setup guide](plugins/mnem0nic/README.md). Installing the plugin does
-not download the executable; public binary downloads are not available yet.
+For personal memory, install the mnem0nic program from its own installer, in a
+terminal, then restart Claude Code:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/datashard-ai/mnem0nic/main/install.sh | sh
+mnem0nic install
+```
+
+`mnem0nic install` adds mnem0nic's hooks and MCP server to Claude Code and Codex. The
+`mnem0nic@datashard` plugin from the same marketplace adds the skill that tells the
+agent how to use it; it does not install the program. See its
+[guide](plugins/mnem0nic/README.md).
 
 ## Codex
 
@@ -67,15 +77,15 @@ bash plugins/datashard/scripts/install-codex.sh https://YOUR-INSTALL/mcp /path/t
 For an already registered Datashard connection, use `--skills-only` in place of the
 address.
 
-For mnem0nic, with a prebuilt executable supplied by its maintainer:
+For mnem0nic, install the program from its own installer (the two commands under
+Claude Code above), which registers its hooks and MCP server for Codex too, then
+restart Codex. The skill is optional:
 
 ```sh
-bash plugins/mnem0nic/scripts/setup.sh /absolute/path/to/mnem0nic /path/to/project --codex
+codex plugin add mnem0nic@datashard
 ```
 
-Open a new Codex session and use `$mnem0nic`. Rust is not required on the user's
-machine; this CLI preview requires Git and sqlite3 with FTS5. See the
-[mnem0nic guide](plugins/mnem0nic/README.md) for limits and handoff testing.
+See the [mnem0nic guide](plugins/mnem0nic/README.md).
 
 ## Cursor
 
@@ -91,8 +101,11 @@ ending in `/mcp`, reload Cursor, sign in to the Datashard MCP server, and run
 `/datashard-init` in the project. Teams can import the same repository from
 Dashboard → Plugins & MCPs.
 
-`mnem0nic` is in that marketplace too. It is the same skill; the executable is
-still supplied separately. See the [Datashard setup guide](plugins/datashard/README.md).
+`mnem0nic` is in that marketplace too, as a skill only: the program records Claude
+Code and Codex sessions, not Cursor's, so in Cursor the skill reads what those
+recorded through the `mnem0nic` command. See the
+[mnem0nic guide](plugins/mnem0nic/README.md) and the
+[Datashard setup guide](plugins/datashard/README.md).
 
 ## What is distributed
 
@@ -101,12 +114,15 @@ client hooks. It does **not** contain the Datashard server implementation, mnem0
 Rust source, customer knowledge, credentials or personal databases. A GitHub source
 archive of this repository contains only those integration files.
 
-Compiled mnem0nic downloads will be published separately from its private source.
-A compiled executable avoids distributing source, but is not protection against
-reverse engineering. This is not an open-source release of either product.
+The compiled mnem0nic program is published separately, from its private source, at
+[datashard-ai/mnem0nic](https://github.com/datashard-ai/mnem0nic), with its own
+installer and licence. A compiled executable avoids distributing source, but is not
+protection against reverse engineering. This is not an open-source release of either
+product.
 
-The current mnem0nic package uses shell commands. A local MCP interface and a
-combined connection with optional Datashard are future work, not shipped features.
+The mnem0nic package here is a skill and its manifests. The MCP server and the hooks
+belong to the program and are registered by its installer, so the package has no MCP
+entry or hooks of its own.
 
 ## Package checks
 

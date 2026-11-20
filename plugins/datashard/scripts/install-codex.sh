@@ -29,8 +29,8 @@ fi
 plugin_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 project_root=$(cd -- "${2:-$PWD}" && pwd)
 skills_root="$project_root/.agents/skills"
-skill_names=(datashard-init save-to-datashard)
-skill_sources=("$plugin_root/codex/skills/datashard-init" "$plugin_root/skills/save-to-datashard")
+skill_names=(datashard-init save-to-datashard record-with-gh0stwriter)
+skill_sources=("$plugin_root/codex/skills/datashard-init" "$plugin_root/skills/save-to-datashard" "$plugin_root/skills/record-with-gh0stwriter")
 
 # Keep project-scoped installation inside the selected project.
 for path in "$project_root/.agents" "$skills_root"; do
@@ -40,8 +40,8 @@ for path in "$project_root/.agents" "$skills_root"; do
   fi
 done
 
-# Preflight both skills before changing the connection or copying either one.
-for index in 0 1; do
+# Preflight every skill before changing the connection or copying either one.
+for index in "${!skill_names[@]}"; do
   target="$skills_root/${skill_names[$index]}"
   if [[ ! -f ${skill_sources[$index]}/SKILL.md ]]; then
     echo "Missing bundled skill: ${skill_sources[$index]}/SKILL.md" >&2
@@ -77,7 +77,7 @@ if [[ $1 != --skills-only ]]; then
   echo 'Datashard was added to Codex. If sign-in is still needed, run: codex mcp login datashard'
 fi
 mkdir -p "$skills_root"
-for index in 0 1; do
+for index in "${!skill_names[@]}"; do
   target="$skills_root/${skill_names[$index]}"
   if [[ ! -e $target ]]; then
     cp -R "${skill_sources[$index]}" "$target"
