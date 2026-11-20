@@ -47,6 +47,7 @@ class PromptAndSchema(unittest.TestCase):
         self.assertIn("Disagreements between two sides", prompt)
         self.assertIn("try the executions that would break it", prompt)
         self.assertIn("Rate severity by who meets the problem, not by how rare it looks", prompt)
+        self.assertIn("or will get with no deploy from this repository", prompt)
 
     def test_the_prompt_says_the_authors_text_is_data_not_instructions(self):
         self.assertIn(

@@ -649,6 +649,7 @@ describe('/datashard:review-with-datashard', () => {
     contains(oneLine, 'one line per shape saying the lines traced and what they showed');
     contains(oneLine, 'run its steps 1 to 6');
     contains(oneLine, 'runs steps 1 to 6 below');
+    lacks(oneLine, 'steps 1 to 5');
   });
 
   it('rates a finding by who meets it, not by how rare it looks', () => {

@@ -21,7 +21,7 @@ Not worth a finding:
 
 Before you set a concern aside, try the executions that would break it: two operations or sources live at once, finishing in either order; the key changing between being read and being used; an item removed, reordered or added after the last one known; empty and boundary inputs; a failure between two effects. Drop it only when you can say why none of them reaches it.
 
-Rate severity by who meets the problem, not by how rare it looks: a wrong result on input the system already gets, or will get with no change to this code (another system turning a feature on, a flag already on), is medium or above. Low is for a case nothing can reach yet, or a cost with no wrong result.
+Rate severity by who meets the problem, not by how rare it looks: a wrong result on input the system already gets, or will get with no deploy from this repository (another system switching a feature on, a flag already on), is medium or above. Low is for a case nothing can reach yet, or a cost with no wrong result.
 
 Base every finding on the diff you were given. It holds the changed hunks, not whole files, and you may be told that some files were left out. If a concern depends on code you cannot see, say so in the detail and give it low confidence. Never guess a line number: if you cannot place a finding exactly, use 0 and describe where it is in the detail.
 

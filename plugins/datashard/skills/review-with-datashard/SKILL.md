@@ -79,7 +79,8 @@ not run: that is not a pass.
 - A finding that says it cannot see code outside the diff ("unverified", "can't confirm"): read that code, or the
   pull request's checks (`gh pr checks "<branch>" -R "<owner>/<repo>"`), and give the answer with its evidence (a
   file and line, a check's result). Run the repository's tests only on a branch the person or the session that asked
-  for the review made, never a bot's or anyone else's: they run the change's code. Run nothing else.
+  for the review made, never a bot's or anyone else's: they run the change's code. Run nothing else that executes the
+  change's code.
 
 ## 3. Trace the change past the diff
 
