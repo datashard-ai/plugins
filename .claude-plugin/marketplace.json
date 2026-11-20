@@ -23,7 +23,7 @@
         "path": "plugins/mnem0nic",
         "sha": "807c97a3c61fa2b8021debcd34db6894edd9d7e2"
       },
-      "description": "Local checkpoint workflow preview. Requires a separately supplied mnem0nic executable."
+      "description": "Personal memory for Claude Code and Codex: search earlier sessions, save checkpoints, resume tasks. Needs the mnem0nic program (Mac with Apple silicon), installed with its own installer."
     }
   ]
 }

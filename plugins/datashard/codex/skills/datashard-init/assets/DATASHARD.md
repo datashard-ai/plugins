@@ -71,3 +71,19 @@ verified. When they disagree, quote both and treat the Datashard fact as the ver
   `mcp__datashard__read`, `mcp__datashard__fetch`, `mcp__datashard__changes`, `mcp__datashard__save` and
   `mcp__datashard__flag` to `CLAUDE_MEM_SKIP_TOOLS` in `~/.claude-mem/settings.json`, comma-separated. It matches whole
   names, so list all seven.
+
+## gh0stwriter
+
+- If gh0stwriter is installed, it records calls on this machine and transcribes them: with AssemblyAI, through its EU
+  endpoint, or on the machine with the local engine. Where AssemblyAI stores uploads is not confirmed, and it keeps
+  transcripts for 30 days: for a client's call, or audio that must stay in the EU, use the local engine
+  (`gh0stwriter config --engine local`, the person's to run).
+- Record only when the person asks, and ask whether it is a client's call (if unsure, treat it as one). Before
+  recording, tell them: "Tell everyone on the call that it is being recorded." For a client's call, the client agrees
+  first. Before recording a client's call, check the engine is local: read only the `engine` line
+  (`grep '^engine' ~/.config/gh0stwriter/config.toml`), never print that file (it holds the API key), and never run
+  `gh0stwriter config` yourself. If it is not local, don't record until the person has switched it.
+- Stop with `gh0stwriter stop --quiet`, so the transcript stays out of the session, and read the transcript only when
+  the person asks.
+- A transcript is personal data: never save it to Datashard. A decision from it goes through the `save-to-datashard`
+  skill, with the person's yes.

@@ -76,6 +76,7 @@ this, keeping the backticks around each value:
 | `` `<tag>`, `<tag>` `` | the tags, each in backticks, comma-separated |
 | `["<tag>"]` | the first tag, e.g. `["mcp"]` |
 | `<path to the .okf folder, or none>` | the bundle's path, or `none` |
+| The `## gh0stwriter` section, up to the next `##` heading, or the end of the file | kept only where gh0stwriter is installed (step 6b), otherwise removed |
 | `` `save-to-datashard` skill (`.claude/skills/save-to-datashard/SKILL.md`) `` | Claude Code only: `` `datashard:save-to-datashard` skill (from the Datashard plugin) ``. Other agents too: unchanged |
 | `mcp__datashard__brief` | `mcp__plugin_datashard_datashard__brief` |
 | `mcp__datashard__search` | `mcp__plugin_datashard_datashard__search` |
@@ -180,6 +181,18 @@ claude-mem's history and leaves claude-mem's data as it is. The last turns claud
 notes. Then they restart Claude Code and run `/datashard:init` again, which keeps the mnem0nic section. More:
 https://github.com/datashard-ai/mnem0nic.
 
+## 6b. Call recording: gh0stwriter
+
+`DATASHARD.md` has a `## gh0stwriter` section for people who record their calls with gh0stwriter. gh0stwriter is
+installed when `command -v gh0stwriter` finds it, or `~/.local/bin/gh0stwriter` exists.
+
+- **New file:** installed: keep the section. Not installed: leave it out of the file.
+- **Existing file:** installed and the file has no `## gh0stwriter` section: offer to add it from the template, at the
+  end of the file, as its own yes. Not installed and the section is there: keep it, since teammates may use it.
+
+If the section is kept or added, tell the person that `/datashard:record-with-gh0stwriter` records a call, and that it
+has them tell everyone on the call that it is being recorded first.
+
 ## 7. Check that a save still asks
 
 Read `permissions.allow` in `.claude/settings.json`, `.claude/settings.local.json`, `~/.claude/settings.json` and, if
@@ -192,6 +205,6 @@ yourself. The plugin's own check still refuses a save to another install whateve
 
 ## 8. Finish
 
-Tell the person what changed, what they declined, and anything left for them (signing in, removing a duplicate server,
-an always-allowed save, switching to mnem0nic). `DATASHARD.md` loads from the next session; the plugin's save check reads its Install line
-from now on.
+Tell the person what changed (including whether `DATASHARD.md` has a `## gh0stwriter` section and why), what they
+declined, and anything left for them (signing in, removing a duplicate server, an always-allowed save, switching to
+mnem0nic). `DATASHARD.md` loads from the next session; the plugin's save check reads its Install line from now on.

@@ -157,8 +157,10 @@ at its own MCP file, skills, rule and hooks, so Cursor does not fill in Claude's
 
 No hosted MCP connection, account, endpoint or access permission is changed merely
 by publishing this repository. Existing installs need the documented marketplace
-migration. The mnem0nic preview ships no executable or MCP entry; add those only
-when the corresponding release and protocol implementation have been validated.
+migration. The mnem0nic package ships no executable, hooks or MCP entry: mnem0nic's own installer
+registers its MCP server and hooks, so the package adds none of its own (the tests
+check there is no `.mcp.json`). Keep its description of the program in step with the
+mnem0nic release it names.
 
 Before publishing, run the package tests and review the complete Git file list.
 Ensure GitHub repository visibility matches the intended distribution audience;

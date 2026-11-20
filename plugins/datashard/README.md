@@ -67,7 +67,7 @@ codex mcp add datashard --url https://YOUR-INSTALL/mcp
 codex mcp login datashard
 ```
 
-The plugin brings `$datashard-init`, `save-to-datashard`, an HTTP server named
+The plugin brings `$datashard-init`, `save-to-datashard`, `$record-with-gh0stwriter`, an HTTP server named
 `datashard`, and a hook that checks `save` and `flag` against the project's
 `DATASHARD.md`. Codex has no install prompt for the company address. The server
 registered with `codex mcp add` is the one it uses: a server of that name in your
@@ -95,7 +95,7 @@ bash plugins/datashard/scripts/install-codex.sh https://YOUR-INSTALL/mcp /path/t
 ```
 
 This registers the remote server when that name is free, and copies
-`datashard-init` and `save-to-datashard` into the project's `.agents/skills/`.
+`datashard-init`, `save-to-datashard` and `record-with-gh0stwriter` into the project's `.agents/skills/`.
 The project path defaults to the current directory. For another project, or when
 the connection already exists:
 
@@ -131,7 +131,7 @@ Install `datashard`. When Cursor asks for the Datashard address, enter the compa
 HTTPS address ending in `/mcp`. Reload Cursor, sign in to the Datashard MCP server
 from Customize, and run `/datashard-init` in the project.
 
-The plugin connects to that address, brings `datashard-init` and `save-to-datashard`,
+The plugin connects to that address, brings `datashard-init`, `save-to-datashard` and `record-with-gh0stwriter`,
 and checks `save` and `flag` against the project's `DATASHARD.md` before they run.
 That check runs in the Cursor desktop app. A cloud agent does not run the plugin's
 MCP hook, so the `AGENTS.md` instructions `/datashard-init` writes tell it to compare
@@ -178,6 +178,17 @@ mnem0nic import-claude-mem    # only when coming from claude-mem
 Then turn claude-mem off, if you used it, and run `/datashard:init` (or
 `$datashard-init`) again: init writes the memory section of `DATASHARD.md` for the
 tool you run, and suggests mnem0nic when it finds claude-mem.
+
+## Recording a call
+
+Where [gh0stwriter](https://github.com/datashard-ai/gh0stwriter) is installed (macOS),
+`/datashard:record-with-gh0stwriter` (`$record-with-gh0stwriter` in Codex,
+`/record-with-gh0stwriter` in Cursor) records a call and transcribes it when you ask.
+Before it starts, it asks you to tell everyone on the call that it is being recorded,
+and for a client's call to have the client agree first. It never saves a transcript to
+Datashard. Without gh0stwriter it says so once and does nothing else; it never installs
+it. Init adds the `## gh0stwriter` section to a new `DATASHARD.md` only where gh0stwriter
+is installed, and keeps an existing one.
 
 References: [Claude marketplaces](https://code.claude.com/docs/en/plugin-marketplaces),
 [Codex MCP](https://developers.openai.com/codex/mcp),
