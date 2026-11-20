@@ -14,16 +14,15 @@ function shell(script,args=[],env={}) {
 }
 function executable(p,body) { writeFileSync(p,'#!/bin/bash\nset -eu\n'+body,{mode:0o700}); }
 const ds='plugins/datashard/scripts/install-codex.sh';
-const mn='plugins/mnem0nic/scripts/setup.sh';
 const packageFiles = [
  'plugins/datashard/.claude-plugin/plugin.json','plugins/datashard/.codex-plugin/plugin.json','plugins/datashard/.cursor-plugin/plugin.json','plugins/datashard/codex/mcp.json','plugins/datashard/.mcp.json','plugins/datashard/README.md',
  'plugins/datashard/hooks/hooks.json','plugins/datashard/codex/hooks.json','plugins/datashard/cursor/hooks.json','plugins/datashard/cursor/mcp.json','plugins/datashard/cursor/rules/datashard.mdc','plugins/datashard/scripts/check-install.sh','plugins/datashard/scripts/codex-check-install.mjs','plugins/datashard/scripts/cursor-check-install.sh','plugins/datashard/scripts/cursor-check-install.mjs','plugins/datashard/scripts/guard-datashard-md.sh','plugins/datashard/scripts/install-codex.sh',
- 'plugins/datashard/skills/init/SKILL.md','plugins/datashard/skills/save-to-datashard/SKILL.md','plugins/datashard/skills/save-to-datashard/fact-format.md','plugins/datashard/templates/DATASHARD.md',
+ 'plugins/datashard/skills/init/SKILL.md','plugins/datashard/skills/save-to-datashard/SKILL.md','plugins/datashard/skills/save-to-datashard/fact-format.md','plugins/datashard/skills/record-with-gh0stwriter/SKILL.md','plugins/datashard/templates/DATASHARD.md',
  'plugins/datashard/skills/review-with-datashard/SKILL.md','plugins/datashard/skills/review-with-datashard/ai_review.py','plugins/datashard/skills/review-with-datashard/prompt.md','plugins/datashard/skills/review-with-datashard/schema.json',
  'plugins/datashard/codex/skills/datashard-init/SKILL.md','plugins/datashard/codex/skills/datashard-init/assets/DATASHARD.md','plugins/datashard/codex/skills/datashard-init/agents/openai.yaml',
- 'plugins/datashard/codex/skills/save-to-datashard/SKILL.md','plugins/datashard/codex/skills/save-to-datashard/fact-format.md',
- 'plugins/datashard/cursor/skills/datashard-init/SKILL.md','plugins/datashard/cursor/skills/save-to-datashard/SKILL.md','plugins/datashard/cursor/skills/save-to-datashard/fact-format.md',
- 'plugins/mnem0nic/.claude-plugin/plugin.json','plugins/mnem0nic/.codex-plugin/plugin.json','plugins/mnem0nic/.cursor-plugin/plugin.json','plugins/mnem0nic/README.md','plugins/mnem0nic/scripts/setup.sh','plugins/mnem0nic/skills/mnem0nic/SKILL.md'
+ 'plugins/datashard/codex/skills/save-to-datashard/SKILL.md','plugins/datashard/codex/skills/save-to-datashard/fact-format.md','plugins/datashard/codex/skills/record-with-gh0stwriter/SKILL.md',
+ 'plugins/datashard/cursor/skills/datashard-init/SKILL.md','plugins/datashard/cursor/skills/save-to-datashard/SKILL.md','plugins/datashard/cursor/skills/save-to-datashard/fact-format.md','plugins/datashard/cursor/skills/record-with-gh0stwriter/SKILL.md',
+ 'plugins/mnem0nic/.claude-plugin/plugin.json','plugins/mnem0nic/.codex-plugin/plugin.json','plugins/mnem0nic/.cursor-plugin/plugin.json','plugins/mnem0nic/README.md','plugins/mnem0nic/skills/mnem0nic/SKILL.md'
 ];
 function files(dir) { return readdirSync(dir).flatMap(n=>{const p=join(dir,n); const s=lstatSync(p); assert.ok(!s.isSymbolicLink(),`Distribution cannot contain symlink: ${p}`);return s.isDirectory()?files(p):[relative(root,p)];}); }
 
@@ -62,9 +61,23 @@ test('marketplace packages and their component paths resolve inside the distribu
  assert.equal(mcp.mcpServers.datashard.url,'${user_config.datashard_url}');
  assert.ok(!existsSync(join(root,'plugins/mnem0nic/.mcp.json')));
 });
+test('mnem0nic package describes the released program, not the old CLI preview',()=>{
+ for(const p of packageFiles.filter(f=>f.startsWith('plugins/mnem0nic/'))) {
+   const body=read(p);
+   for(const old of ['not yet an MCP server','not an MCP server','setup.sh','separately supplied','sqlite3']) assert.ok(!body.includes(old),`${p}: ${old}`);
+ }
+ const skill=read('plugins/mnem0nic/skills/mnem0nic/SKILL.md');
+ for(const s of ['install.sh','mnem0nic install','mcp__mnem0nic__','memory_save','memory_resume','fact:section/id','datashard_refs','mnem0nic search','mnem0nic sessions']) assert.ok(skill.includes(s),s);
+ assert.equal(json('plugins/mnem0nic/.claude-plugin/plugin.json').version,'0.3.0');
+ for(const m of ['.claude-plugin/marketplace.json','.cursor-plugin/marketplace.json']) {
+   const entry=json(m).plugins.find(p=>p.name==='mnem0nic');
+   assert.doesNotMatch(entry.description,/preview|separately supplied|checkpoint workflow/i,m);
+ }
+});
 test('Datashard skills-only installs from nested package and reruns without modifying local files',t=>{
  const p=scratch(t); let r=shell(ds,['--skills-only',p]); assert.equal(r.status,0,r.stderr);
  const skill=join(p,'.agents/skills/datashard-init/SKILL.md');const before=readFileSync(skill,'utf8');
+ assert.ok(existsSync(join(p,'.agents/skills/record-with-gh0stwriter/SKILL.md')));
  r=shell(ds,['--skills-only',p]);assert.equal(r.status,0,r.stderr);assert.equal(readFileSync(skill,'utf8'),before);
  writeFileSync(skill,'user customization'); r=shell(ds,['--skills-only',p]);assert.notEqual(r.status,0);assert.equal(readFileSync(skill,'utf8'),'user customization');
 });
@@ -87,31 +100,6 @@ test('Datashard save guard still refuses a different install after packaging',t=
  const r=shell('plugins/datashard/scripts/check-install.sh',[],{CLAUDE_PROJECT_DIR:p,CLAUDE_PLUGIN_OPTION_DATASHARD_URL:'https://example.com/mcp'});
  assert.equal(r.status,0,r.stderr);assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision,'deny');
 });
-function mockMemory(t) {
- const p=scratch(t),binary=join(p,"mnem0nic binary's file"),project=join(p,'project with spaces');mkdirSync(project);
- executable(binary,'if [[ "$1" == --version ]]; then echo "mnem0nic 0.1.0"; exit; fi\n[[ "$1" == --project && "$3" == init ]]\nprintf "%s" "$2" > "$INIT_LOG"\n');
- return {p,binary,project,env:{INIT_LOG:join(p,'init-log')}};
-}
-test('memory setup passes spaced paths safely and optionally installs the Codex skill',t=>{
- const {binary,project,env}=mockMemory(t);let r=shell(mn,[binary,project,'--codex'],env);assert.equal(r.status,0,r.stderr);
- assert.equal(readFileSync(env.INIT_LOG,'utf8'),realpathSync(project));assert.ok(existsSync(join(project,'.agents/skills/mnem0nic/SKILL.md')));
- r=shell(mn,[binary,project,'--codex'],env);assert.equal(r.status,0,r.stderr);
-});
-test('memory setup preserves differing local skill before invoking binary init',t=>{
- const {binary,project,env}=mockMemory(t);const dest=join(project,'.agents/skills/mnem0nic');mkdirSync(dest,{recursive:true});writeFileSync(join(dest,'SKILL.md'),'custom');
- const r=shell(mn,[binary,project,'--codex'],env);assert.notEqual(r.status,0);assert.ok(!existsSync(env.INIT_LOG));assert.equal(readFileSync(join(dest,'SKILL.md'),'utf8'),'custom');
-});
-test('memory setup rejects symlink skill parents before changing project',t=>{
- const {p,binary,project,env}=mockMemory(t);const outside=join(p,'outside');mkdirSync(outside);symlinkSync(outside,join(project,'.agents'));
- const r=shell(mn,[binary,project,'--codex'],env);assert.notEqual(r.status,0);assert.ok(!existsSync(env.INIT_LOG));assert.deepEqual(readdirSync(outside),[]);
-});
-test('memory setup fails for missing executable and does not install skill',t=>{
- const {project,env}=mockMemory(t);const r=shell(mn,['/nonexistent/mnem0nic',project,'--codex'],env);assert.notEqual(r.status,0);assert.ok(!existsSync(join(project,'.agents')));
-});
-test('memory setup does not install Codex skill without --codex',t=>{
- const {binary,project,env}=mockMemory(t);const r=shell(mn,[binary,project],env);assert.equal(r.status,0,r.stderr);assert.ok(!existsSync(join(project,'.agents')));
-});
-
 test('Datashard rejects symlinked skills parent before changing connection or files',t=>{
  const p=scratch(t),outside=join(p,'outside'),project=join(p,'project');mkdirSync(outside);mkdirSync(project);symlinkSync(outside,join(project,'.agents'));
  const r=shell(ds,['--skills-only',project]);assert.notEqual(r.status,0);assert.deepEqual(readdirSync(outside),[]);
@@ -123,14 +111,6 @@ test('Datashard refuses unknown lookup failures rather than overwriting an exist
  executable(join(bin,'codex'),'if [[ "$2" == get ]]; then echo "Error: permission denied reading config" >&2; exit 1; fi\necho called > "$CALL_LOG"\n');
  const r=shell(ds,['https://example.com/mcp',p],{PATH:bin+':'+process.env.PATH,CALL_LOG:log});
  assert.notEqual(r.status,0);assert.ok(!existsSync(log));assert.ok(!existsSync(join(p,'.agents')));
-});
-test('memory setup supports SQLite with double-quoted strings disabled',t=>{
- const {p,binary,project,env}=mockMemory(t),bin=join(p,'bin');mkdirSync(bin);
- const sqlite=spawnSync('/bin/sh',['-c','command -v sqlite3'],{encoding:'utf8'}).stdout.trim();
- assert.ok(sqlite.startsWith('/'));
- executable(join(bin,'sqlite3'),'exec "$REAL_SQLITE" -cmd ".dbconfig dqs_dml off" "$@"\n');
- const r=shell(mn,[binary,project],{...env,REAL_SQLITE:sqlite,PATH:bin+':'+process.env.PATH});
- assert.equal(r.status,0,r.stderr);assert.ok(existsSync(env.INIT_LOG));
 });
 test('every tracked repository file belongs to the reviewed distribution',()=>{
  const r=spawnSync('git',['-C',root,'ls-files','-z'],{encoding:'utf8'});

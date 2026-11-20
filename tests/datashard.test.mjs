@@ -639,12 +639,94 @@ describe('/datashard:review-with-datashard', () => {
     contains(read(join(root, '.github/workflows/ci.yml')), "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'");
   });
 
+  it('traces each value past the diff and tries each shape, one line of coverage per shape in the report', () => {
+    contains(oneLine, '## 3. Trace the change past the diff');
+    contains(oneLine, 'find every other reader and writer of it in `<path>` (`git grep`), in the diff or not');
+    for (const shape of ['Two writers or sources feeding one record or key', 'One source held back, withdrawn or failing', 'A rule for the first or last item', 'A fallback for records stored before a field existed', 'The executions that break a guard']) {
+      contains(oneLine, shape);
+    }
+    contains(oneLine, '"Looks handled" is not a result');
+    contains(oneLine, 'one line per shape saying the lines traced and what they showed');
+    contains(oneLine, 'run its steps 1 to 6');
+    contains(oneLine, 'runs steps 1 to 6 below');
+    lacks(oneLine, 'steps 1 to 5');
+    contains(oneLine, 'run only the commands these steps name: read-only `git` (`fetch`, `log`, `diff`, `show`, `grep`), `gh pr view`, `gh pr checks` and `ai_review.py`');
+  });
+
+  it('rates a finding by who meets it, not by how rare it looks', () => {
+    contains(oneLine, 'by who meets it, not by how rare it looks: a wrong result on input production already gets, or will get with no deploy from this repository');
+  });
+
   it('is only in the Claude Code package, which has the Agent tool and the claude command it needs', () => {
     for (const manifest of ['.codex-plugin/plugin.json', '.cursor-plugin/plugin.json']) {
       lacks(read(join(plugin, manifest)), 'review-with-datashard');
     }
     assert.equal(existsSync(join(plugin, 'codex/skills/review-with-datashard')), false);
     assert.equal(existsSync(join(plugin, 'cursor/skills/review-with-datashard')), false);
+  });
+});
+
+describe('/datashard:record-with-gh0stwriter', () => {
+  const skill = read(join(plugin, 'skills/record-with-gh0stwriter/SKILL.md'));
+  it('is the same skill for Claude, Codex and Cursor', () => {
+    for (const dir of ['codex/skills', 'cursor/skills'])
+      assert.equal(read(join(plugin, dir, 'record-with-gh0stwriter/SKILL.md')), skill);
+  });
+  it('is named for its folder', () => assert.match(skill, /^---\nname: record-with-gh0stwriter$/m));
+  it('runs only where gh0stwriter is installed, and never installs it', () => {
+    contains(skill, 'command -v gh0stwriter');
+    contains(skill, 'https://raw.githubusercontent.com/datashard-ai/gh0stwriter/main/install.sh');
+    contains(skill, 'Never install it yourself');
+  });
+  it('has the person tell everyone on the call before it records', () => {
+    contains(skill, 'Tell everyone on the call that it is being recorded.');
+    contains(skill, "For a client's call, the client must agree first.");
+    assert.ok(skill.indexOf('Tell everyone on the call') < skill.indexOf('gh0stwriter record'));
+  });
+  it('keeps the transcript out of the session and out of Datashard', () => {
+    contains(skill, 'gh0stwriter stop --quiet');
+    assert.doesNotMatch(skill, /gh0stwriter stop(?! --quiet)(?!`)/);
+    contains(skill, 'never save it');
+  });
+  it('never prints the config file that holds the API key', () => contains(skill, 'never print'));
+  it('names no decision number and no private folder', () => assert.doesNotMatch(skill, /ADR|\/Users\/|xbt/));
+
+  // The skill's text, with line wrapping ignored.
+  const flatSkill = skill.replace(/\s+/g, ' ');
+  const stopStep = flatSkill.match(/## 4\. Stop(.*?)## 5\./)?.[1];
+  it('says "Recording stopped." only after stop exits 0, and "Stopping" until then', () => {
+    assert.ok(stopStep, 'a step 4');
+    contains(stopStep, 'say "Stopping; I\'ll confirm when it\'s done."');
+    contains(stopStep, 'Say "Recording stopped." only after `stop` exits 0');
+    assert.equal(flatSkill.split('Recording stopped.').length - 1, 1, 'one place says it');
+  });
+  it('says the recording is still running when stop exits 2, and passes the run folder to stop', () => {
+    contains(stopStep, 'If it exits 2, the recording is still running');
+    contains(flatSkill, 'If `stop` exited 2, the recording is still running: say so first');
+    contains(skill, 'gh0stwriter stop --quiet <run>');
+    contains(flatSkill, 'pass it on in the same message');
+  });
+  it('says where the audio goes: an EU endpoint, storage not confirmed, 30 days, and the local engine for a client', () => {
+    contains(flatSkill, 'sent to AssemblyAI through its EU endpoint; where AssemblyAI stores uploads is not confirmed, and it keeps transcripts for 30 days');
+    contains(flatSkill, "For a client's call, or audio that must stay in the EU, use the local engine: `gh0stwriter config --engine local`, which is theirs to run.");
+    lacks(flatSkill, "EU API");
+  });
+  it("records a client's call only with the local engine, and never offers AssemblyAI for one", () => {
+    const beforeYouStart = flatSkill.match(/## 2\. Before you start(.*?)## 3\./)?.[1];
+    assert.ok(beforeYouStart, 'a step 2');
+    contains(beforeYouStart, "client's call");
+    contains(beforeYouStart, 'local');
+    contains(beforeYouStart, "If it is a client's call and the `engine` line is not `local`");
+    contains(beforeYouStart, 'do not start');
+    contains(skill, "never for a client's call");
+  });
+  it('counts gh0stwriter as installed as init does, and runs it by its full path where that is where it is', () => {
+    contains(flatSkill, 'or `~/.local/bin/gh0stwriter` exists');
+    contains(flatSkill, 'run it by that full path');
+  });
+  it('leaves installing sox, the models and the engine to the person, and lists speakers only when asked', () => {
+    contains(flatSkill, 'are theirs too: never run either yourself');
+    contains(flatSkill, 'only when the person asks to name the speakers');
   });
 });
 
@@ -689,6 +771,23 @@ describe('the memory sections of DATASHARD.md', () => {
       contains(skill, '`Darwin arm64`');
     }
     contains(read(join(plugin, 'README.md')), installer);
+  });
+
+  it('keeps a gh0stwriter section only where gh0stwriter is installed', () => {
+    contains(template, '## gh0stwriter');
+    contains(template, 'Tell everyone on the call that it is being recorded.');
+    for (const f of ['skills/init/SKILL.md', 'codex/skills/datashard-init/SKILL.md', 'cursor/skills/datashard-init/SKILL.md'])
+      contains(read(join(plugin, f)), 'command -v gh0stwriter', f);
+  });
+
+  it('says where AssemblyAI keeps audio: an EU endpoint, storage not confirmed, 30 days, and the local engine for a client', () => {
+    const gh0stwriter = flat(section('gh0stwriter'));
+    contains(gh0stwriter, 'If gh0stwriter is installed');
+    contains(gh0stwriter, "Before recording a client's call, check the engine is local");
+    contains(gh0stwriter, 'with AssemblyAI, through its EU endpoint');
+    contains(gh0stwriter, 'Where AssemblyAI stores uploads is not confirmed, and it keeps transcripts for 30 days');
+    contains(gh0stwriter, "for a client's call, or audio that must stay in the EU, use the local engine (`gh0stwriter config --engine local`, the person's to run)");
+    lacks(gh0stwriter, 'EU API');
   });
 });
 
