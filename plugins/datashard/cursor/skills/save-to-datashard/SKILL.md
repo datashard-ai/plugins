@@ -77,7 +77,8 @@ A fact for the project's section, when the project keeps a bundle, is a file. An
   search returns the family once and each part carries the overview's title. Parts are in the overview's section; a part
   of another overview, or an overview itself, is refused (`bad-part` names it). In a sibling split, save the new parts,
   then the shortened part, then the overview, so what moves out of a fact is saved before the fact loses it. If a split
-  stops partway, the parts already saved stay: on the retry update them by their ids, never save them again.
+  stops partway, the parts already saved stay: on the retry find them (by their ids, or in a new chat by searching their
+  titles), read each again and update it with its `version`; never save them again.
 - Update: also pass the fact's `id` and the `version` you read. Retire: also pass `status: deprecated`, and leave out
   the title, description, body and tags, which are kept as they are; put the reason or the replacement in a fact that
   links to it.
