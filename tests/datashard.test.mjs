@@ -650,6 +650,7 @@ describe('/datashard:review-with-datashard', () => {
     contains(oneLine, 'run its steps 1 to 6');
     contains(oneLine, 'runs steps 1 to 6 below');
     lacks(oneLine, 'steps 1 to 5');
+    contains(oneLine, 'run only the commands these steps name: read-only `git` (`fetch`, `log`, `diff`, `show`, `grep`), `gh pr view`, `gh pr checks` and `ai_review.py`');
   });
 
   it('rates a finding by who meets it, not by how rare it looks', () => {
