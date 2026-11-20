@@ -5,8 +5,9 @@ description: Records a call or meeting and transcribes it with the gh0stwriter c
 
 # Record a call with gh0stwriter
 
-gh0stwriter is a command line tool for macOS 14 or later. It takes the microphone (and the call's sound, if the person
-set that up), then writes a transcript. A call is capped at 3 hours, and only one recording runs at a time.
+gh0stwriter is a command line tool for a Mac with Apple silicon, on macOS 14 or later. It takes the microphone (and
+the call's sound, if the person set that up), then writes a transcript. A call is capped at 3 hours, and only one
+recording runs at a time.
 
 ## 1. Is it installed?
 
@@ -18,14 +19,21 @@ Never install it yourself, and don't bring it up again in this conversation.
 
 ## 2. Before you start
 
-Start only when the person asks. First tell them:
+Start only when the person asks. First ask whether it is a client's call. Read only the `engine` line, with
+`grep '^engine' ~/.config/gh0stwriter/config.toml`, and never print that file: it holds the API key.
+
+If it is a client's call and the `engine` line is not `local` (or there is none), do not start. AssemblyAI has not
+confirmed in writing where uploads made through its EU endpoint are stored, so a client's call is recorded only with
+the local engine. Tell the person that, and that they switch it themselves (`gh0stwriter config --engine local`). Start
+only once the engine is local.
+
+Then tell them:
 
 > Tell everyone on the call that it is being recorded.
 
-Also tell them where the audio goes. Read only the `engine` line, with `grep '^engine' ~/.config/gh0stwriter/config.toml`,
-and never print that file: it holds the API key. With `local`, say "transcribed on this Mac, nothing leaves it". With
-anything else, or no `engine` line, say "sent to AssemblyAI through its EU endpoint; where AssemblyAI stores uploads is
-not confirmed, and it keeps transcripts for 30 days". For a client's call, or audio that must stay in the EU, use the
+Also tell them where the audio goes. With `local`, say "transcribed on this Mac, nothing leaves it". With anything
+else, or no `engine` line, say "sent to AssemblyAI through its EU endpoint; where AssemblyAI stores uploads is not
+confirmed, and it keeps transcripts for 30 days". For a client's call, or audio that must stay in the EU, use the
 local engine: `gh0stwriter config --engine local`, which is theirs to run. For a client's call, the client must agree first.
 Wait for their go.
 
@@ -33,7 +41,8 @@ Wait for their go.
 
 Run `gh0stwriter record --title "<title>"`. It returns within a second and prints the run folder. Report that folder and
 say "Recording now." If `record` prints a warning, such as a missing model or a silent microphone, pass it on in the
-same message. Add `--minutes N` if the person wants it to stop by itself.
+same message. Add `--minutes N` if the person wants it to stop by itself; a recording that ends that way still needs
+`gh0stwriter stop --quiet <run>` to be transcribed.
 
 ## 4. Stop
 
@@ -64,7 +73,7 @@ side is `us`, `client` or `other`.
   missing. If `stop` exited 2, the recording is still running: say so first, then what fixes it. The fix is theirs, in
   their own terminal: `gh0stwriter model` to download the models, or setting the API key or the engine
   (`gh0stwriter config`). `--engine assemblyai` works only if they accept that the audio goes to AssemblyAI, as in
-  step 2. Then run `gh0stwriter stop --quiet <run>` again.
+  step 2, and is never for a client's call. Then run `gh0stwriter stop --quiet <run>` again.
 - Exit 3 (sox not found): tell them. `brew install sox` is theirs to run.
 - Exit 4 (a recording is already running, the input is silent, ...): tell them what it said.
 - Exit 5: the transcription failed and the audio is kept. Offer `gh0stwriter transcribe <run>`.

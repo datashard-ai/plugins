@@ -43,6 +43,9 @@ Use only these three commands (`resume` when the person asks to continue a task)
 `--all-projects` and no `--project` unless the person asks. The command line has no documented way to save a
 checkpoint, so in Cursor say so rather than inventing one.
 
+If the project's `AGENTS.md` or `CLAUDE.md` still points at `./.project-memory/run`, from the old preview, tell the
+person those instructions are out of date and offer to remove them, and remove them only on their yes.
+
 ## 2. Search before re-deriving
 
 Before you redo analysis, ask why something is built the way it is, or start a task that may have been started

@@ -40,7 +40,7 @@ for path in "$project_root/.agents" "$skills_root"; do
   fi
 done
 
-# Preflight every skill before changing the connection or copying either one.
+# Preflight every skill before changing the connection or copying any of them.
 for index in "${!skill_names[@]}"; do
   target="$skills_root/${skill_names[$index]}"
   if [[ ! -f ${skill_sources[$index]}/SKILL.md ]]; then

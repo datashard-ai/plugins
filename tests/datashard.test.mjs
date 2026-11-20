@@ -693,6 +693,15 @@ describe('/datashard:record-with-gh0stwriter', () => {
     contains(flatSkill, "For a client's call, or audio that must stay in the EU, use the local engine: `gh0stwriter config --engine local`, which is theirs to run.");
     lacks(flatSkill, "EU API");
   });
+  it("records a client's call only with the local engine, and never offers AssemblyAI for one", () => {
+    const beforeYouStart = flatSkill.match(/## 2\. Before you start(.*?)## 3\./)?.[1];
+    assert.ok(beforeYouStart, 'a step 2');
+    contains(beforeYouStart, "client's call");
+    contains(beforeYouStart, 'local');
+    contains(beforeYouStart, "If it is a client's call and the `engine` line is not `local`");
+    contains(beforeYouStart, 'do not start');
+    contains(skill, "never for a client's call");
+  });
   it('counts gh0stwriter as installed as init does, and runs it by its full path where that is where it is', () => {
     contains(flatSkill, 'or `~/.local/bin/gh0stwriter` exists');
     contains(flatSkill, 'run it by that full path');
@@ -755,6 +764,8 @@ describe('the memory sections of DATASHARD.md', () => {
 
   it('says where AssemblyAI keeps audio: an EU endpoint, storage not confirmed, 30 days, and the local engine for a client', () => {
     const gh0stwriter = flat(section('gh0stwriter'));
+    contains(gh0stwriter, 'If gh0stwriter is installed');
+    contains(gh0stwriter, "Before recording a client's call, check the engine is local");
     contains(gh0stwriter, 'with AssemblyAI, through its EU endpoint');
     contains(gh0stwriter, 'Where AssemblyAI stores uploads is not confirmed, and it keeps transcripts for 30 days');
     contains(gh0stwriter, "for a client's call, or audio that must stay in the EU, use the local engine (`gh0stwriter config --engine local`, the person's to run)");

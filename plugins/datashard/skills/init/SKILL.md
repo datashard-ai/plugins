@@ -76,7 +76,7 @@ this, keeping the backticks around each value:
 | `` `<tag>`, `<tag>` `` | the tags, each in backticks, comma-separated |
 | `["<tag>"]` | the first tag, e.g. `["mcp"]` |
 | `<path to the .okf folder, or none>` | the bundle's path, or `none` |
-| The `## gh0stwriter` section, up to the end of the file | kept only where gh0stwriter is installed (step 6b), otherwise removed |
+| The `## gh0stwriter` section, up to the next `##` heading, or the end of the file | kept only where gh0stwriter is installed (step 6b), otherwise removed |
 | `` `save-to-datashard` skill (`.claude/skills/save-to-datashard/SKILL.md`) `` | Claude Code only: `` `datashard:save-to-datashard` skill (from the Datashard plugin) ``. Other agents too: unchanged |
 | `mcp__datashard__brief` | `mcp__plugin_datashard_datashard__brief` |
 | `mcp__datashard__search` | `mcp__plugin_datashard_datashard__search` |

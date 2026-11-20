@@ -68,10 +68,11 @@ https://github.com/datashard-ai/mnem0nic). Run these only if they ask you to.
 
 The file also has a `## gh0stwriter` section, for people who record their calls with gh0stwriter. gh0stwriter is
 installed when `command -v gh0stwriter` finds it or `~/.local/bin/gh0stwriter` exists. In a new file, keep the section
-if it is installed and leave it out if not. In an existing file, if it is installed and the section is missing, offer
-to add it from the plugin template, at the end of the file, on the person's yes; if it is not installed and the
-section is there, keep it, since teammates may use it. Where the section is kept or added, tell the person that
-`/record-with-gh0stwriter` records a call and has them tell everyone on the call that it is being recorded first.
+if it is installed and leave it out if not (it runs up to the next `##` heading, or the end of the file). In an existing
+file, if it is installed and the section is missing, offer to add it from the plugin template, at the end of the file,
+on the person's yes; if it is not installed and the section is there, keep it, since teammates may use it. Where the
+section is kept or added, tell the person that `/record-with-gh0stwriter` records a call and has them tell everyone on
+the call that it is being recorded first.
 
 Create root `AGENTS.md` if missing. Otherwise append only missing instructions, preserving existing content and
 equivalent rules. Include these requirements and a standalone `@DATASHARD.md` line for Claude Code
