@@ -10,6 +10,7 @@ Worth a finding:
 - Concurrency: races, unsafe shared state, retried work that is not idempotent.
 - Errors at system boundaries: external calls whose failure is not checked, exceptions swallowed.
 - Contract breaks: a changed signature, schema or response shape whose callers were not updated.
+- Disagreements between two sides: a value written in one place and read in another (writer and later reader, caller and callee, producer and consumer) where the two disagree on who decides the value, which key finds it again, or whether a missing value and an empty one mean the same.
 - Tests and docs: changed behaviour with no test that would catch it breaking; a comment or document that no longer matches the code.
 
 Not worth a finding:
@@ -17,6 +18,10 @@ Not worth a finding:
 - Formatting, import order, or anything a linter or formatter handles.
 - Naming taste, or rewriting the code in your own style.
 - Praise: the person is reading for problems.
+
+Before you set a concern aside, try the executions that would break it: two operations or sources live at once, finishing in either order; the key changing between being read and being used; an item removed, reordered or added after the last one known; empty and boundary inputs; a failure between two effects. Drop it only when you can say why none of them reaches it.
+
+Rate severity by who meets the problem, not by how rare it looks: a wrong result on input the system already gets, or will get with no change to this code (another system turning a feature on, a flag already on), is medium or above. Low is for a case nothing can reach yet, or a cost with no wrong result.
 
 Base every finding on the diff you were given. It holds the changed hunks, not whole files, and you may be told that some files were left out. If a concern depends on code you cannot see, say so in the detail and give it low confidence. Never guess a line number: if you cannot place a finding exactly, use 0 and describe where it is in the detail.
 

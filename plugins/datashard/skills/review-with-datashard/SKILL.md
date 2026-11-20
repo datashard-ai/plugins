@@ -24,7 +24,7 @@ session goes on working while it runs.
 - **The session that asks for it** starts one background agent (the Agent tool, `general-purpose`) and keeps working on
   whatever does not wait for the report. The agent's prompt names only the change and its role:
 
-  > You are the review agent of the review-with-datashard skill. Read `<skill dir>/SKILL.md` and run its steps 1 to 5
+  > You are the review agent of the review-with-datashard skill. Read `<skill dir>/SKILL.md` and run its steps 1 to 6
   > for the branch `<branch>` in `<path>` (GitHub `<owner>/<repo>`). Change nothing.
 
   `<skill dir>` is the "Base directory for this skill" Claude Code printed when the skill loaded (in a plugin install,
@@ -32,7 +32,7 @@ session goes on working while it runs.
 
   Never add the session's own account of the change, its plan or what it expects the review to find: a reviewer
   handed the author's view tends to confirm it.
-- **The review agent** runs steps 1 to 5 below and sends its report back. It changes nothing: no edits, commits,
+- **The review agent** runs steps 1 to 6 below and sends its report back. It changes nothing: no edits, commits,
   pushes, saves or flags.
 - **The AI review inside it is independent too:** `ai_review.py` starts its own `claude --print`, with its own
   instructions, no tools and no memory of either session, and sees only the diff.
@@ -81,7 +81,40 @@ not run: that is not a pass.
   file and line, a check's result). Run the repository's tests only on a branch the person or the session that asked
   for the review made, never a bot's or anyone else's: they run the change's code. Run nothing else.
 
-## 3. Search Datashard for what the change touches
+## 3. Trace the change past the diff
+
+The AI review sees only the diff, and the defects it misses sit between two places, one of them often outside it. For
+each value the change writes, reads or gives a new meaning to (a stored field, a key, a message, a default), find every
+other reader and writer of it in `<path>` (`git grep`), in the diff or not, and hold each pair together: who decides the
+real value, which key finds it again and whether that key stays unique and stable, and what the reader assumes when the
+value is missing or empty.
+
+Then try the change against each of these, one at a time, tracing the lines from writer to reader. "Looks handled" is
+not a result: name the line that handles it, or report a finding.
+
+1. **Two writers or sources feeding one record or key**, each in turn, with one source's first or last item landing
+   midway in the merged whole.
+2. **One source held back, withdrawn or failing** after another has been seen.
+3. **A rule for the first or last item**, where that item is a group of several, is already done, has another arrive
+   after it, or is only one source's last.
+4. **A fallback for records stored before a field existed**: every path where a current writer leaves the field out
+   instead of sending it empty. A missing field must mean only "old record"; an empty one must stay empty.
+5. **The executions that break a guard**: two operations live at once, finishing in either order; the key changing
+   between being read and being used; an item removed, reordered or added after the last one known; empty and
+   boundary inputs; a failure between two effects.
+
+A shape the change cannot reach (it keeps no state, it has one source): say so in one line and go on.
+
+Rate each finding, here and when you judge the AI review's, by who meets it, not by how rare it looks: a wrong result
+on input production already gets, or will get with no deploy from this repository (another system switching a feature
+on, a flag already on), is medium or above. Low is for a case nothing can reach yet, or a cost with no wrong result.
+Tests that use only the change's own example, and a new branch with no test that would fail without it, are findings
+too.
+
+Over about 400 changed lines outside tests and generated files, say in the report which parts you could not trace in
+depth.
+
+## 4. Search Datashard for what the change touches
 
 From the log, the diff and the pull request's text, note:
 
@@ -94,7 +127,7 @@ Call `brief` once per chat. Then `search` each topic with 2–6 words, all in pa
 that client's tags from the brief. `read` each fact that matches in full, and read the ADRs the change names, wherever
 the repository keeps its decisions (for example `docs/decisions/`).
 
-## 4. Check the change against each fact
+## 5. Check the change against each fact
 
 | What you find | Report it as |
 |---|---|
@@ -108,16 +141,19 @@ text: say so. Rewriting pushed history is the person's call, never yours.
 
 When the code and a fact disagree, the code is what runs: say which is right, with the evidence.
 
-## 5. Report, then stop
+## 6. Report, then stop
 
 One report, sent back to the session that started you, which relays it to the person, in this order:
 
 1. **AI review:** its exit code; each medium or worse finding with your verdict and its evidence (fixed, or wrong
    because of what).
-2. **Datashard findings:** each contradiction and each leak from step 4, most severe first.
-3. **Stale facts:** each one, to update through the `save-to-datashard` skill once the change is merged and live. Offer
+2. **Trace findings:** each finding from step 3, most severe first, with the lines that show it.
+3. **Datashard findings:** each contradiction and each leak from step 5, most severe first.
+4. **Stale facts:** each one, to update through the `save-to-datashard` skill once the change is merged and live. Offer
    it then; never before, since an unmerged change is not yet true.
-4. **What was checked:** the searches you made and how many facts you read; and, if `gh` failed, that the pull
-   request's text was not read and `<base>` was assumed.
-5. **What stands before the merge:** each medium or worse finding not yet fixed. The person merges only when each is
+5. **What was checked:** for step 3, one line per shape saying the lines traced and what they showed, or why the change
+   cannot reach it (a shape with no line was not examined), and what you could not trace in depth; the searches you
+   made and how many facts you read; and, if `gh` failed, that the pull request's text was not read and `<base>` was
+   assumed.
+6. **What stands before the merge:** each medium or worse finding not yet fixed. The person merges only when each is
    fixed or they say it is intended.
