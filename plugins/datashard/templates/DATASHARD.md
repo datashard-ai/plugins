@@ -78,9 +78,12 @@ verified. When they disagree, quote both and treat the Datashard fact as the ver
   endpoint, or on the machine with the local engine. Where AssemblyAI stores uploads is not confirmed, and it keeps
   transcripts for 30 days: for a client's call, or audio that must stay in the EU, use the local engine
   (`gh0stwriter config --engine local`, the person's to run).
-- Record only when the person asks. Before recording, tell them:
-  "Tell everyone on the call that it is being recorded." For a client's call, the client agrees first.
-  Before recording a client's call, check the engine is local; if it is not, don't record until the person has
-  switched it.
+- Record only when the person asks, and ask whether it is a client's call (if unsure, treat it as one). Before
+  recording, tell them: "Tell everyone on the call that it is being recorded." For a client's call, the client agrees
+  first. Before recording a client's call, check the engine is local: read only the `engine` line
+  (`grep '^engine' ~/.config/gh0stwriter/config.toml`), never print that file (it holds the API key), and never run
+  `gh0stwriter config` yourself. If it is not local, don't record until the person has switched it.
+- Stop with `gh0stwriter stop --quiet`, so the transcript stays out of the session, and read the transcript only when
+  the person asks.
 - A transcript is personal data: never save it to Datashard. A decision from it goes through the `save-to-datashard`
   skill, with the person's yes.
