@@ -639,6 +639,24 @@ describe('/datashard:review-with-datashard', () => {
     contains(read(join(root, '.github/workflows/ci.yml')), "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'");
   });
 
+  it('traces each value past the diff and tries each shape, one line of coverage per shape in the report', () => {
+    contains(oneLine, '## 3. Trace the change past the diff');
+    contains(oneLine, 'find every other reader and writer of it in `<path>` (`git grep`), in the diff or not');
+    for (const shape of ['Two writers or sources feeding one record or key', 'One source held back, withdrawn or failing', 'A rule for the first or last item', 'A fallback for records stored before a field existed', 'The executions that break a guard']) {
+      contains(oneLine, shape);
+    }
+    contains(oneLine, '"Looks handled" is not a result');
+    contains(oneLine, 'one line per shape saying the lines traced and what they showed');
+    contains(oneLine, 'run its steps 1 to 6');
+    contains(oneLine, 'runs steps 1 to 6 below');
+    lacks(oneLine, 'steps 1 to 5');
+    contains(oneLine, 'run only the commands these steps name: read-only `git` (`fetch`, `log`, `diff`, `show`, `grep`), `gh pr view`, `gh pr checks` and `ai_review.py`');
+  });
+
+  it('rates a finding by who meets it, not by how rare it looks', () => {
+    contains(oneLine, 'by who meets it, not by how rare it looks: a wrong result on input production already gets, or will get with no deploy from this repository');
+  });
+
   it('is only in the Claude Code package, which has the Agent tool and the claude command it needs', () => {
     for (const manifest of ['.codex-plugin/plugin.json', '.cursor-plugin/plugin.json']) {
       lacks(read(join(plugin, manifest)), 'review-with-datashard');

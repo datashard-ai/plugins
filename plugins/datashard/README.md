@@ -43,7 +43,11 @@ marketplace under Marketplaces in `/plugin`.
 Claude Code starts an independent review agent in the background, so your session goes
 on working. The agent runs an AI review of the diff, then checks the change against what
 Datashard records: decisions and contracts it contradicts, private detail it would
-publish, facts it makes stale. It changes nothing and approves nothing; you decide.
+publish, facts it makes stale. It also traces each value the change writes or reads to
+its other readers and writers outside the diff, and tries the cases that tend to slip
+past a diff review: two sources feeding one record, a source withdrawn, a first or last
+item, a field older records lack, and operations that overlap or fail halfway. It
+changes nothing and approves nothing; you decide.
 
 It needs a recent Claude Code with the `claude` command on your PATH, Python 3.10 or
 later and `git`. The GitHub CLI (`gh`), signed in, is needed only to read the pull
