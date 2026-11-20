@@ -672,6 +672,35 @@ describe('/datashard:record-with-gh0stwriter', () => {
   });
   it('never prints the config file that holds the API key', () => contains(skill, 'never print'));
   it('names no decision number and no private folder', () => assert.doesNotMatch(skill, /ADR|\/Users\/|xbt/));
+
+  // The skill's text, with line wrapping ignored.
+  const flatSkill = skill.replace(/\s+/g, ' ');
+  const stopStep = flatSkill.match(/## 4\. Stop(.*?)## 5\./)?.[1];
+  it('says "Recording stopped." only after stop exits 0, and "Stopping" until then', () => {
+    assert.ok(stopStep, 'a step 4');
+    contains(stopStep, 'say "Stopping; I\'ll confirm when it\'s done."');
+    contains(stopStep, 'Say "Recording stopped." only after `stop` exits 0');
+    assert.equal(flatSkill.split('Recording stopped.').length - 1, 1, 'one place says it');
+  });
+  it('says the recording is still running when stop exits 2, and passes the run folder to stop', () => {
+    contains(stopStep, 'If it exits 2, the recording is still running');
+    contains(flatSkill, 'If `stop` exited 2, the recording is still running: say so first');
+    contains(skill, 'gh0stwriter stop --quiet <run>');
+    contains(flatSkill, 'pass it on in the same message');
+  });
+  it('says where the audio goes: an EU endpoint, storage not confirmed, 30 days, and the local engine for a client', () => {
+    contains(flatSkill, 'sent to AssemblyAI through its EU endpoint; where AssemblyAI stores uploads is not confirmed, and it keeps transcripts for 30 days');
+    contains(flatSkill, "For a client's call, or audio that must stay in the EU, use the local engine: `gh0stwriter config --engine local`, which is theirs to run.");
+    lacks(flatSkill, "EU API");
+  });
+  it('counts gh0stwriter as installed as init does, and runs it by its full path where that is where it is', () => {
+    contains(flatSkill, 'or `~/.local/bin/gh0stwriter` exists');
+    contains(flatSkill, 'run it by that full path');
+  });
+  it('leaves installing sox, the models and the engine to the person, and lists speakers only when asked', () => {
+    contains(flatSkill, 'are theirs too: never run either yourself');
+    contains(flatSkill, 'only when the person asks to name the speakers');
+  });
 });
 
 describe('the memory sections of DATASHARD.md', () => {
@@ -722,6 +751,14 @@ describe('the memory sections of DATASHARD.md', () => {
     contains(template, 'Tell everyone on the call that it is being recorded.');
     for (const f of ['skills/init/SKILL.md', 'codex/skills/datashard-init/SKILL.md', 'cursor/skills/datashard-init/SKILL.md'])
       contains(read(join(plugin, f)), 'command -v gh0stwriter', f);
+  });
+
+  it('says where AssemblyAI keeps audio: an EU endpoint, storage not confirmed, 30 days, and the local engine for a client', () => {
+    const gh0stwriter = flat(section('gh0stwriter'));
+    contains(gh0stwriter, 'with AssemblyAI, through its EU endpoint');
+    contains(gh0stwriter, 'Where AssemblyAI stores uploads is not confirmed, and it keeps transcripts for 30 days');
+    contains(gh0stwriter, "for a client's call, or audio that must stay in the EU, use the local engine (`gh0stwriter config --engine local`, the person's to run)");
+    lacks(gh0stwriter, 'EU API');
   });
 });
 

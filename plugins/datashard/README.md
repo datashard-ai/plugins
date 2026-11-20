@@ -187,8 +187,8 @@ Where [gh0stwriter](https://github.com/datashard-ai/gh0stwriter) is installed (m
 Before it starts, it asks you to tell everyone on the call that it is being recorded,
 and for a client's call to have the client agree first. It never saves a transcript to
 Datashard. Without gh0stwriter it says so once and does nothing else; it never installs
-it. Init keeps the `## gh0stwriter` section of `DATASHARD.md` only where gh0stwriter is
-installed.
+it. Init adds the `## gh0stwriter` section to a new `DATASHARD.md` only where gh0stwriter
+is installed, and keeps an existing one.
 
 References: [Claude marketplaces](https://code.claude.com/docs/en/plugin-marketplaces),
 [Codex MCP](https://developers.openai.com/codex/mcp),

@@ -28,17 +28,20 @@ then restart Claude Code or Codex. **Run nothing of this yourself**: not the ins
 off, report that message as it is and don't work around it.
 
 **Cursor.** mnem0nic has no Cursor integration: it records Claude Code and Codex sessions only, and nothing of this
-session. Here the skill works through the command. From the project root, run `command -v mnem0nic`; if it finds
-nothing, say how to install it, as above, and stop. If it is there, read what the other two recorded for this
-project:
+session. Here the skill works through the command. mnem0nic is installed if `command -v mnem0nic` finds it, or
+`~/.local/bin/mnem0nic` exists: an agent's shell may not have `~/.local/bin` on its `PATH`, so if it is only there, run
+it by that full path. If it is in neither place, say how to install it, as above, and stop. If it is there, then from
+the project root read what the other two recorded for this project:
 
 ```sh
 mnem0nic search "distinctive words"
 mnem0nic sessions
+mnem0nic resume
 ```
 
-Use only these reading commands, and stay in this project: no `--all-projects` and no `--project` unless the person
-asks. The command line documented for mnem0nic cannot save a checkpoint, so in Cursor say so rather than inventing one.
+Use only these three commands (`resume` when the person asks to continue a task), and stay in this project: no
+`--all-projects` and no `--project` unless the person asks. The command line has no documented way to save a
+checkpoint, so in Cursor say so rather than inventing one.
 
 ## 2. Search before re-deriving
 
@@ -76,8 +79,8 @@ goal, constraints, completed changes, checks and results, decisions, open questi
 next action. Never claim a save succeeded unless the tool returned success.
 
 Keep out of anything you save (`memory_save`, `save_memory`, `work_state_write`): secrets, full transcripts, tool
-dumps, and the text of Datashard facts. Redaction and `<private>` tags do not cover a checkpoint or a work-state
-list, so what you write there is stored as written.
+dumps, and the text of Datashard facts. `<private>` tags are not removed from anything you save, and redaction does
+not cover a checkpoint or a work-state list, so what you write there is stored as written.
 
 ## 5. Datashard
 

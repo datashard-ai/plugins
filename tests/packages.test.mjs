@@ -119,7 +119,6 @@ test('every tracked repository file belongs to the reviewed distribution',()=>{
   '.github/workflows/ci.yml','.github/dependabot.yml','.github/claude-code/package.json','.github/claude-code/package-lock.json',
   'tests/packages.test.mjs','tests/datashard.test.mjs','tests/release-checks.test.mjs','tests/version-check.sh','tests/open-prs-check.sh','tests/test_ai_review.py','LICENSE.md',
   '.github/CODEOWNERS','.github/workflows/guarded.yml','.github/workflows/pin-from-main.yml','tests/guarded.mjs','tests/pin.mjs','tests/pin.test.mjs']);
- // A file deleted from the working tree but not yet committed is still listed by git, and is not distributed.
  for(const file of r.stdout.split('\0').filter(Boolean)) assert.ok(allowed.has(file),`Unreviewed tracked file: ${file}`);
 });
 

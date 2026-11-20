@@ -30,6 +30,9 @@ after a dated backup of each settings file it changes, and downloads the search 
 
 Intel Macs and Windows are not supported. Linux is covered in the mnem0nic README.
 
+If a project was set up with the preview of this package, remove its `.project-memory` instructions from
+AGENTS.md/CLAUDE.md: they point at `./.project-memory/run`, which the released mnem0nic does not use.
+
 ## Add the skill
 
 The skill is optional for Claude Code and Codex, whose tools mnem0nic's installer registers. It adds the workflow and
@@ -49,8 +52,9 @@ codex plugin add mnem0nic@datashard
 
 Cursor reads the same marketplace (see the [root README](../../README.md)). mnem0nic has no Cursor integration and
 records nothing from Cursor sessions, so there the skill is the only part: it uses the `mnem0nic` command from the
-project root, `mnem0nic search "words"` and `mnem0nic sessions`, to read what Claude Code and Codex recorded for that
-project. The documented commands only read, so it cannot save a checkpoint from Cursor.
+project root, `mnem0nic search "words"`, `mnem0nic sessions` and `mnem0nic resume`, to read what Claude Code and Codex
+recorded for that project. The command line has no documented way to save a checkpoint, so it cannot save one from
+Cursor.
 
 ## What the agent gets
 
@@ -97,14 +101,14 @@ Turn claude-mem off so the two don't both take notes: `npx claude-mem uninstall`
 
 ## Privacy and Datashard
 
-- Everything mnem0nic records stays in `~/.local/share/mnem0nic`, readable only by your user account. No account, no
-  telemetry, no server of mnem0nic's.
+- Everything mnem0nic records stays in `~/.local/share/mnem0nic`, readable only by your user account, and, with paired
+  Macs, on those Macs. No account, no telemetry, no server of mnem0nic's.
 - After each turn, the request, its tool calls and the agent's reply go to the provider of the CLI you used,
   Anthropic for Claude Code and OpenAI for Codex, through your own login, to write the note. Never an API key, so
   never a per-token bill.
 - Wrap text in `<private>` tags, or exclude a whole project in mnem0nic's `config.toml`, and it is never stored.
-  Secrets that mnem0nic recognises are replaced before anything is stored. Redaction does not cover checkpoints or
-  work-state lists.
+  Secrets that mnem0nic recognises are replaced before anything is stored. Tags are not removed from what the agent
+  saves itself, and redaction does not cover checkpoints or work-state lists.
 - **mnem0nic never stores calls to Datashard's tools**, neither what was asked nor what came back, and the notes
   model never sees them. Facts are fetched again when needed, with your current access.
 - Datashard knowledge is fetched live through its own integration. In a checkpoint, record only the fact reference

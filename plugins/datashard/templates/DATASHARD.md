@@ -74,8 +74,10 @@ verified. When they disagree, quote both and treat the Datashard fact as the ver
 
 ## gh0stwriter
 
-- gh0stwriter records calls on this machine and transcribes them: with AssemblyAI's EU API, or on the machine with the
-  local engine.
+- gh0stwriter records calls on this machine and transcribes them: with AssemblyAI, through its EU endpoint, or on the
+  machine with the local engine. Where AssemblyAI stores uploads is not confirmed, and it keeps transcripts for 30
+  days: for a client's call, or audio that must stay in the EU, use the local engine
+  (`gh0stwriter config --engine local`, the person's to run).
 - Record only when the person asks. Before recording, tell them:
   "Tell everyone on the call that it is being recorded." For a client's call, the client agrees first.
 - A transcript is personal data: never save it to Datashard. A decision from it goes through the `save-to-datashard`
