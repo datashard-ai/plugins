@@ -15,8 +15,10 @@ Facts are kept small: one topic each, within 4,000 characters, a long text split
 - Keep the terms you searched with; the score asks for them.
 - With a bundle, also search its files: they may hold changes not imported yet.
 - Read the closest facts. If one already covers the topic, update it rather than add a new one. A short addition
-  goes into that fact when the result stays within 4,000 characters.
+  goes into that fact when the result stays within 4,000 characters. When it would not, split as in step 2, the addition
+  going into the right part: never shorten or drop what the fact already says to make room.
 - If what you would save contradicts a fact, tell the person before anything else, quoting the fact and its owner.
+- Several notes from one chat are grouped by topic first: one fact per topic, not one per note.
 
 ## 2. Write the fact
 
@@ -29,8 +31,11 @@ Facts are kept small: one topic each, within 4,000 characters, a long text split
   2. Each part's title and first line name its subject ("Acme webhook: retries", not "Retries"), so it is understood
      on its own.
   3. Add an overview fact: what the whole is about, then one line per part, each linking straight to the part.
-  4. To split a fact that is already too long, it becomes the overview, keeping its id (or its file), and the parts
-     are new facts.
+  4. To split a fact that is already too long, or one an update would take past 4,000 characters, it becomes the
+     overview, keeping its id (or its file), and the parts are new facts. What it said moves into the parts whole, and the addition into the right part.
+  5. A fact that is itself a part (its `partOf` names an overview) can't have parts. Split it into sibling parts
+     instead: it keeps one part of its text under its id, the rest moves whole into new parts, and its overview gets a
+     line and a `parts` id for each new part.
 - Tag what the fact is about (a client, a system, a project) with up to 5 tags from the brief's list: those without a
   `section`, and those of the section you save to, most used first. Reuse before anything new.
 - Only when no tag fits, propose one new tag in `newTags`: `{id, about}`, an id a colleague would use for that client,
@@ -66,10 +71,14 @@ A fact for the project's section, when the project keeps a bundle, is a file. An
 
 - New fact: `save` with `section`, `type`, `title`, `description`, `body`, `tags`. In a section that keeps facts about
   clients, such as `commercial`, also pass `about`: the client's project or organisation id from the brief's `parties`.
-- A split: save the parts first, then the overview with the parts' ids (`save` refuses a link to a fact that does not
-  exist yet). Pass the same ids as the overview's `parts`, so search returns the family once and each part carries the
-  overview's title. Parts are in the overview's section; a part of another overview, or an overview itself,
-  is refused (`bad-part` names it).
+- A split: save the parts first, each with `separate: true` (parts resemble each other and the fact they came from, so
+  the check for repeated facts would refuse them), then the overview with the parts' ids (`save` refuses a link to a fact
+  that does not exist yet, and does not check an overview for repeats). Pass the same ids as the overview's `parts`, so
+  search returns the family once and each part carries the overview's title. Parts are in the overview's section; a part
+  of another overview, or an overview itself, is refused (`bad-part` names it). In a sibling split, save the new parts,
+  then the shortened part, then the overview, so what moves out of a fact is saved before the fact loses it. If a split
+  stops partway, the parts already saved stay: on the retry find them (by their ids, or in a new chat by searching their
+  titles), read each again and update it with its `version`; never save them again.
 - Update: also pass the fact's `id` and the `version` you read. Retire: also pass `status: deprecated`, and leave out
   the title, description, body and tags, which are kept as they are; put the reason or the replacement in a fact that
   links to it.
@@ -80,11 +89,17 @@ A fact for the project's section, when the project keeps a bundle, is a file. An
   bundle.
 - If it is refused, act on the message: `conflict` means read the fact again and redo step 3; an unknown tag names the
   nearest known ones; an unknown link names the link to fix; a secret means take it out; `too-long` means split the
-  fact as in step 2; `retire-changes-fact` means retire it with its text and tags left out; `bad-part` names the part to leave out or fix;
+  fact as in step 2; `retire-changes-fact` means retire it with its text and tags left out; `bad-part` names the part to leave out or fix (when it names the fact you are splitting, that fact is itself a part: split it into sibling parts as in step 2);
   `about` refused means pick an id from the brief's `parties`, or save another client's knowledge in its own section;
   `near-tag` names the tag the new one is the same as or near: use it, or, only if the person says the new one means
   something else, save again with it in the new tag's `distinctFrom`; `not-a-tag` means pick an id for what the fact is about;
   `tag-limit` means use one of the section's tags; `too-many-tags` means leave one out of `tags`.
+- `similar` means nothing was saved: the new fact repeats facts the person can read, and the answer names up to 3 of them,
+  nearest first, each with its `similarity`. (1) Show the person those facts and ask: add to one of them, or save a new
+  fact? (2) To add to one, read it and propose a new version holding both texts, within 4,000 characters; if the result
+  would be longer, split by topic as in step 2, the note going into the right part. Show the new version as in step 3, and
+  save it as an update after the person's yes. (3) For a new fact, save again with `separate: true`. (4) Several notes from
+  one chat are grouped by topic first, as in step 1: one fact per topic, not one per note.
 - If the answer lists `droppedTags`, tell the person the fact no longer carries them.
 - If the answer lists `removedTags`, tell the person the save also removed those unused tags from the section.
 - If the answer lists `hiddenLinks`, tell the person which roles can't open which linked facts.
