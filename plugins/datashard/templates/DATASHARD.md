@@ -45,7 +45,7 @@ contract with another system, a gotcha that cost time, how a process works.
   asks you to.
 - To save, follow the `save-to-datashard` skill (`.claude/skills/save-to-datashard/SKILL.md`): it searches first,
   updates rather than duplicates, keeps each fact within 4,000 characters (splitting a longer one into linked facts),
-  shows the person the exact text, and saves only after they say yes.
+  shows the person the exact text, and saves only after they say yes, except for an autosave its score allows.
 
 ## mnem0nic
 

@@ -1,7 +1,7 @@
 {
   "name": "datashard",
   "displayName": "Datashard",
-  "version": "0.32.1",
+  "version": "0.33.0",
   "description": "Datashard, the company's knowledge base of verified facts, in Claude Code: the install's MCP server, the save skill, /datashard:review-with-datashard to check a change against Datashard, /datashard:record-with-gh0stwriter to record a call where gh0stwriter is installed, and /datashard:init to set up a project.",
   "author": {
     "name": "Xibit Digital"
