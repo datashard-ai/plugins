@@ -42,7 +42,10 @@ describe("the package's copies of its templates", () => {
       'claims only what the source says',
       "a fact saved without a person's yes counts for nothing",
       'at least 15 for direct evidence and at least 5 for freshness',
-      "The score never replaces the person's yes",
+      "The one exception to the person's yes is autosave",
+      'auto: true',
+      'at most 20 autosaves a day',
+      '`not-auto`',
       // A high total does not make a price or an access change skimmable: the costly kinds are read closely whatever the total.
       'Whatever the total',
       'a decision, a price or rate, a contract or SLA, access and roles, a credential, security posture or a role change',
